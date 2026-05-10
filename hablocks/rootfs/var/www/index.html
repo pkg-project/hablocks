@@ -69,11 +69,7 @@
 <div id="hdr">
 <div class="brand"><div class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#08090b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div><div><div class="brand-name">ha<em>blocks</em></div><div class="brand-sub">visual automations · home assistant</div></div></div>
 <div class="hac">
-<input id="ha-url" class="inp" placeholder="https://homeassistant.local:8123" style="width:240px"/>
-<div style="position:relative"><input id="ha-token" class="inp" type="password" placeholder="long-lived access token" style="width:190px;padding-right:28px"/>
-<button onclick="document.getElementById('ha-token').type=document.getElementById('ha-token').type==='password'?'text':'password'" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--td);cursor:pointer;padding:2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
 <div id="spill" class="sp off"><div class="dot"></div><span>offline</span></div>
-<button id="cbtn" class="btn btn-a" onclick="toggleConn()">connect</button>
 <span id="saved-msg" class="saved-msg">✓ saved</span>
 <button class="btn" onclick="showSettings()" title="Settings">⚙</button>
 </div>
@@ -115,12 +111,12 @@ const ADDON_MODE=ADDON_TOKEN&&!ADDON_TOKEN.startsWith('%%');
 function flashSaved(){const el=$('saved-msg');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000)}
 
 // HA WebSocket
-function setSt(s,m){const el=$('spill');el.className='sp '+(s==='on'?'on':s==='err'?'err':'off');el.querySelector('span').textContent=s==='err'?(m||'error').slice(0,30):s==='on'?'connected':'offline';$('cbtn').textContent=s==='on'?'disconnect':'connect';$('cbtn').className=s==='on'?'btn':'btn btn-a';$('rbtn').disabled=s!=='on';$('ha-url').disabled=s==='on';$('ha-token').disabled=s==='on'}
+function setSt(s,m){const el=$('spill');el.className='sp '+(s==='on'?'on':s==='err'?'err':'off');el.querySelector('span').textContent=s==='err'?(m||'error').slice(0,30):s==='on'?'connected':'offline';$('rbtn').disabled=s!=='on'}
 function wsS(p){return new Promise((r,j)=>{if(!wsC||!ws)return j(new Error('Not connected'));const id=wsMid++;wsP.set(id,{resolve:r,reject:j});ws.send(JSON.stringify({id,...p}))})}
 
 async function toggleConn(){
   if(wsC){rts.forEach(rt=>rt.destroy());rts.clear();ws.close();ws=null;wsC=false;ents.clear();rEnts();setSt('off');addLog('sys','info','Disconnected');updRun();updFt();return}
-  const url=$('ha-url').value.trim(),tok=$('ha-token').value.trim();
+  const url=ADDON_MODE?location.origin:($('ha-url-hidden')||{value:''}).value,tok=ADDON_MODE?ADDON_TOKEN:'';
   if(!url||!tok){setSt('err','need URL + token');return}
   try{
     const wu=ADDON_MODE?(location.protocol==='https:'?'wss://':'ws://')+location.host+'/api/websocket':url.replace(/^http/,'ws').replace(/\/+$/,'')+'/api/websocket';ws=new WebSocket(wu);
@@ -137,7 +133,7 @@ async function toggleConn(){
     const sid=wsMid++;wsE.set(sid,ev=>{const eid=ev.data?.entity_id;if(!eid)return;if(ev.data.new_state)ents.set(eid,ev.data.new_state);else ents.delete(eid);rEnts();rts.forEach(rt=>rt.onSC(ev))});
     ws.send(JSON.stringify({id:sid,type:'subscribe_events',event_type:'state_changed'}));
     setSt('on');addLog('sys','info','Connected — '+ents.size+' entities');rEnts();
-    S.s('ha-url',url);S.s('ha-token',tok);flashSaved();
+    flashSaved();
   }catch(e){setSt('err',e.message);addLog('sys','error','Failed: '+e.message);ws=null;wsC=false}
 }
 
@@ -432,15 +428,13 @@ var toolbox={kind:'categoryToolbox',contents:[
   {kind:'block',type:'lists_create_empty'},{kind:'block',type:'lists_create_with'},{kind:'block',type:'lists_repeat'},
   {kind:'block',type:'lists_length'},{kind:'block',type:'lists_isEmpty'},{kind:'block',type:'lists_indexOf'},
   {kind:'block',type:'lists_getIndex'},{kind:'block',type:'lists_setIndex'}]},
-{kind:'category',name:'Colour',colour:'#a5745b',contents:[
-  {kind:'block',type:'colour_picker'},{kind:'block',type:'colour_random'},{kind:'block',type:'colour_rgb'},{kind:'block',type:'colour_blend'}]},
 {kind:'category',name:'Variables',colour:'#a55b80',custom:'VARIABLE'},
 {kind:'category',name:'Functions',colour:'#995ba5',custom:'PROCEDURE'}]};
 
 // ─── INIT ───
 async function init(){
   const sv=await S.g('ha-url',''),st=await S.g('ha-token',''),ss=await S.g('hb-scripts',null),se=await S.g('ha-sets',null);
-  if(sv)$('ha-url').value=sv;if(st)$('ha-token').value=st;if(se)sets=se;
+  if(se)sets=se;
   defBlocks();
   workspace=Blockly.inject('bd',{toolbox,theme:Blockly.Theme.defineTheme('hab',{base:Blockly.Themes.Classic,componentStyles:{workspaceBackgroundColour:'#151920',toolboxBackgroundColour:'#0e1015',toolboxForegroundColour:'#e2dfd8',flyoutBackgroundColour:'#1c2230',flyoutForegroundColour:'#e2dfd8',flyoutOpacity:0.97,scrollbarColour:'#232a38',scrollbarOpacity:0.8,insertionMarkerColour:'#e8952f',cursorColour:'#e8952f'},fontStyle:{family:'DM Mono, monospace',weight:'500',size:11},startHats:true}),
     renderer:'zelos',grid:{spacing:28,length:2,colour:'#232a3830',snap:true},zoom:{controls:true,wheel:true,startScale:0.92,maxScale:2,minScale:0.3,scaleSpeed:1.1},trashcan:true,move:{scrollbars:true,drag:true,wheel:true},sounds:false,media:'https://cdnjs.cloudflare.com/ajax/libs/blockly/12.3.1/media/'});
@@ -450,11 +444,7 @@ async function init(){
   
   new ResizeObserver(function(){Blockly.svgResize(workspace)}).observe($('bd'));
   // Auto-connect: add-on mode uses supervisor token, standalone uses saved creds
-  if(ADDON_MODE){
-    $('ha-url').value=location.origin;$('ha-token').value=ADDON_TOKEN;
-    $('ha-url').style.display='none';$('ha-token').parentElement.style.display='none';
-    setTimeout(()=>toggleConn(),300);
-  }else if(sets.auto&&sv&&st){setTimeout(()=>toggleConn(),500)}
+  if(ADDON_MODE){setTimeout(()=>toggleConn(),300);}else if(sets.auto&&sv&&st){setTimeout(()=>toggleConn(),500)}
 }
 init();
 </script>
