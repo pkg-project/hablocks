@@ -81,8 +81,8 @@
 <div id="main">
 <div id="sp"><div class="sh"><h3>Scripts</h3><button class="btn" onclick="newScript()" style="padding:3px 8px;font-size:10px">+ new</button></div><div id="slist" class="sl"></div><div class="ss"><div><span>entities</span><span id="ecnt" style="color:var(--g)">0</span></div><div><span>running</span><span id="rcnt" style="color:var(--a)">0</span></div></div></div>
 <div id="wa">
-<div id="stb"><span style="color:var(--td);font-size:12px">#</span><input id="sname" class="inp" placeholder="script name" style="background:transparent;border:none;padding:2px 4px;font-weight:600;font-size:13px;width:200px" onchange="renameScript(this.value)"/><span id="udot" style="color:var(--a);font-size:14px;display:none">●</span><div id="rba"></div><div style="flex:1"></div>
-<button class="btn" onclick="saveScript()">💾 save</button>
+<div id="stb"><span style="color:var(--td);font-size:12px">#</span><input id="sname" class="inp" placeholder="script name" style="background:transparent;border:none;padding:2px 4px;font-weight:600;font-size:13px;width:200px" onchange="renameScript(this.value)"/><div id="rba"></div><div style="flex:1"></div>
+
 <button id="rbtn" class="btn btn-g" onclick="runScript()" disabled>▶ run</button>
 <button id="sbtn" class="btn btn-r" onclick="stopScript()" style="display:none">■ stop</button>
 <button class="btn btn-r" onclick="deleteScript()" style="padding:5px 7px" title="Delete">✕</button></div>
@@ -93,7 +93,7 @@
 <div id="p-log" class="pane"><div id="lc"></div></div>
 <div id="p-ent" class="pane"><input class="es" placeholder="search entities..." oninput="rEnts(this.value)"/><div id="elist" style="overflow-y:auto"></div></div>
 </div></div></div>
-<div id="ft"><div style="display:flex;gap:14px"><span>⚡ <span id="fr">0</span> running</span><span>🕐 <span id="fs">0</span> schedules</span><span>📡 <span id="fu">0</span> subs</span></div><span>ctrl/cmd+S save · credentials + blocks persist</span></div>
+<div id="ft"><div style="display:flex;gap:14px"><span>⚡ <span id="fr">0</span> running</span><span>🕐 <span id="fs">0</span> schedules</span><span>📡 <span id="fu">0</span> subs</span></div><span>auto-saved · blocks persist</span></div>
 </div>
 <div id="setmod" class="modal-bg" style="display:none" onclick="if(event.target===this)this.style.display='none'"><div class="modal"><h2>Settings</h2><label>Latitude (for astro)</label><input id="slat" class="inp" type="number" step="0.0001" placeholder="51.97"/><label>Longitude (for astro)</label><input id="slng" class="inp" type="number" step="0.0001" placeholder="5.67"/><label>Auto-connect on load</label><select id="sauto" class="inp"><option value="1">Yes</option><option value="0">No</option></select><div class="br"><button class="btn" onclick="$('setmod').style.display='none'">cancel</button><button class="btn btn-a" onclick="saveSets()">save</button></div></div></div>
 
@@ -161,7 +161,7 @@ function swTab(el){document.querySelectorAll('.tab').forEach(t=>t.classList.remo
 function newScript(){const id='s_'+Date.now();scripts.push({id,name:'script_'+(scripts.length+1),st:null});selScript(id);saveAll()}
 function selScript(id){if(cid&&workspace){const c=scripts.find(s=>s.id===cid);if(c)c.st=Blockly.serialization.workspaces.save(workspace)}cid=id;const sc=scripts.find(s=>s.id===id);if(!sc)return;$('sname').value=sc.name;if(workspace){workspace.clear();if(sc.st)try{Blockly.serialization.workspaces.load(sc.st,workspace)}catch(e){console.warn(e)}}updRun();rScripts();updCode()}
 function renameScript(n){const sc=scripts.find(s=>s.id===cid);if(sc){sc.name=n;saveAll();rScripts()}}
-function saveScript(){if(!cid||!workspace)return;const sc=scripts.find(s=>s.id===cid);if(sc)sc.st=Blockly.serialization.workspaces.save(workspace);saveAll();$('udot').style.display='none';flashSaved()}
+function saveScript(){if(!cid||!workspace)return;const sc=scripts.find(s=>s.id===cid);if(sc)sc.st=Blockly.serialization.workspaces.save(workspace);saveAll();flashSaved()}
 function deleteScript(){if(!cid)return;const sc=scripts.find(s=>s.id===cid);if(!confirm('Delete "'+sc?.name+'"?'))return;if(rts.has(cid)){rts.get(cid).destroy();rts.delete(cid)}scripts=scripts.filter(s=>s.id!==cid);if(scripts.length)selScript(scripts[0].id);else{cid=null;workspace?.clear();$('sname').value=''}saveAll();rScripts();updFt()}
 function saveAll(){S.s('hb-scripts',scripts)}
 function rScripts(){$('slist').innerHTML=scripts.map(s=>'<div class="si '+(s.id===cid?'act':'')+'" onclick="selScript(\''+s.id+'\')"><div class="'+(rts.has(s.id)?'dr':'di')+'"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(s.name)+'</span><button class="sd" onclick="event.stopPropagation();delId(\''+s.id+'\')">✕</button></div>').join('');$('rcnt').textContent=rts.size}
@@ -444,10 +444,10 @@ async function init(){
   defBlocks();
   workspace=Blockly.inject('bd',{toolbox,theme:Blockly.Theme.defineTheme('hab',{base:Blockly.Themes.Classic,componentStyles:{workspaceBackgroundColour:'#151920',toolboxBackgroundColour:'#0e1015',toolboxForegroundColour:'#e2dfd8',flyoutBackgroundColour:'#1c2230',flyoutForegroundColour:'#e2dfd8',flyoutOpacity:0.97,scrollbarColour:'#232a38',scrollbarOpacity:0.8,insertionMarkerColour:'#e8952f',cursorColour:'#e8952f'},fontStyle:{family:'DM Mono, monospace',weight:'500',size:11},startHats:true}),
     renderer:'zelos',grid:{spacing:28,length:2,colour:'#232a3830',snap:true},zoom:{controls:true,wheel:true,startScale:0.92,maxScale:2,minScale:0.3,scaleSpeed:1.1},trashcan:true,move:{scrollbars:true,drag:true,wheel:true},sounds:false,media:'https://cdnjs.cloudflare.com/ajax/libs/blockly/12.3.1/media/'});
-  workspace.addChangeListener(function(){updCode();$('udot').style.display=''});
+  let _saveT=null;workspace.addChangeListener(function(e){if(e.isUiEvent)return;updCode();clearTimeout(_saveT);_saveT=setTimeout(()=>saveScript(),800)});
   if(ss&&ss.length)scripts=ss;else scripts=[{id:'s_seed',name:'example',st:null}];
   rScripts();if(scripts.length)selScript(scripts[0].id);
-  document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveScript()}});
+  
   new ResizeObserver(function(){Blockly.svgResize(workspace)}).observe($('bd'));
   // Auto-connect: add-on mode uses supervisor token, standalone uses saved creds
   if(ADDON_MODE){
