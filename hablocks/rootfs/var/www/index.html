@@ -132,7 +132,7 @@ function handleMsg(ev){
       if(m.subs!=null)$('fu').textContent=m.subs;
       if(m.scheds!=null)$('fs').textContent=m.scheds;
       updRun();rScripts();break;
-    case 'log':addLog(m.script||'sys',m.level||'info',m.msg);break;
+    case 'log':addLog(m.script||'sys',m.level||'info',m.msg,m.t);break;
     case 'error':addLog('sys','error',m.msg||'Unknown error');break;
   }
 }
@@ -147,12 +147,12 @@ async function toggleConn(){
       const tm=setTimeout(()=>{ws.close();rej(new Error('Timeout'))},15000);
       ws.onopen=()=>ws.send(JSON.stringify({type:'auth',token:tok}));
       ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch{return}
-        if(m.type==='auth_ok'){clearTimeout(tm);wsC=true;res()}
+        if(m.type==='auth_ok'){clearTimeout(tm);wsC=true;ws.onmessage=handleMsg;res()}
         else if(m.type==='auth_error'){clearTimeout(tm);rej(new Error(m.message||'Auth failed'))}
-        else if(m.type==='error'){clearTimeout(tm);rej(new Error(m.msg||'Error'))}};
+        else if(m.type==='error'){clearTimeout(tm);rej(new Error(m.msg||'Error'))}
+        else handleMsg(ev)};
       ws.onerror=()=>{clearTimeout(tm);rej(new Error('Backend unreachable'))};
       ws.onclose=()=>{if(wsC){wsC=false;setSt('off')}}});
-    ws.onmessage=handleMsg;
     setSt('on');addLog('sys','info','Connected to backend');
   }catch(e){setSt('err',e.message);addLog('sys','error','Failed: '+e.message);ws=null;wsC=false}
 }
@@ -161,8 +161,8 @@ function showSettings(){$('slat').value=sets.lat;$('slng').value=sets.lng;$('sau
 function saveSets(){sets.lat=parseFloat($('slat').value)||51.97;sets.lng=parseFloat($('slng').value)||5.67;sets.auto=$('sauto').value==='1';const t=$('stok').value.trim();if(t){_savedTok=t;S.s('ha-token',t)}S.s('ha-sets',sets);$('setmod').style.display='none';addLog('sys','info','Settings saved');flashSaved();if(!wsC&&(ADDON_MODE||_savedTok))toggleConn()}
 
 // Logging
-function addLog(sc,lv,msg){const e={id:++logN,t:Date.now(),sc,lv,msg:String(msg)};logs.push(e);if(logs.length>500)logs=logs.slice(-400);$('lcnt').textContent=logs.length;if($('p-log').classList.contains('act'))appLog(e)}
-function appLog(l){const el=$('lc'),t=new Date(l.t).toLocaleTimeString('en-GB',{hour12:false}),d=document.createElement('div');d.className='le';d.innerHTML='<span class="lt">'+t+'</span><span class="ll '+l.lv+'">'+l.lv+'</span><span class="ls">['+esc(l.sc)+']</span><span class="lm">'+esc(l.msg)+'</span>';el.appendChild(d);el.scrollTop=el.scrollHeight}
+function addLog(sc,lv,msg,ts){const e={id:++logN,t:ts||Date.now(),sc,lv,msg:String(msg)};logs.push(e);if(logs.length>500)logs=logs.slice(-400);$('lcnt').textContent=logs.length;if($('p-log').classList.contains('act'))appLog(e)}
+function appLog(l){const el=$('lc'),dt=new Date(l.t),pad=n=>String(n).padStart(2,'0'),t=pad(dt.getHours())+':'+pad(dt.getMinutes())+':'+pad(dt.getSeconds()),d=document.createElement('div');d.className='le';d.innerHTML='<span class="lt">'+t+'</span><span class="ll '+l.lv+'">'+l.lv+'</span><span class="ls">['+esc(l.sc)+']</span><span class="lm">'+esc(l.msg)+'</span>';el.appendChild(d);el.scrollTop=el.scrollHeight}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
 // Entities

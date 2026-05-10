@@ -332,21 +332,30 @@ setInterval(() => { const now = new Date(); if (now.getSeconds() === 0) runningS
 // ── Browser WebSocket server ──────────────────────────────────
 const wss = new WebSocket.Server({ port: BACKEND_PORT });
 
+function sendInitialData(ws) {
+  if (haConnected) ws.send(JSON.stringify({ type: 'states', data: Array.from(entityStates.values()) }));
+  logBuffer.forEach(l => { try { ws.send(JSON.stringify(l)); } catch {} });
+  const ids = Array.from(runningScripts.keys());
+  let subs = 0, scheds = 0;
+  runningScripts.forEach(rt => { subs += rt.subCnt; scheds += rt.schCnt; });
+  ws.send(JSON.stringify({ type: 'running', ids, subs, scheds }));
+}
+
 wss.on('connection', ws => {
   clients.add(ws);
   sysLog('Browser connected');
+  // Only send status — rest is sent after auth so handleMsg is already set in the browser
   ws.send(JSON.stringify({ type: 'ha_status', status: haConnected ? 'connected' : 'disconnected' }));
-  if (haConnected) ws.send(JSON.stringify({ type: 'states', data: Array.from(entityStates.values()) }));
-  logBuffer.forEach(l => { try { ws.send(JSON.stringify(l)); } catch {} });
-  broadcastRunning();
 
   ws.on('message', async data => {
     let msg; try { msg = JSON.parse(data); } catch { return; }
     try {
       switch (msg.type) {
         case 'auth':
-          await haConnect(msg.token);
+          if (!haConnected) await haConnect(msg.token);
+          else haToken = msg.token; // accept new token even if already connected
           ws.send(JSON.stringify({ type: 'auth_ok' }));
+          sendInitialData(ws); // send after auth_ok so browser's handleMsg is active
           break;
         case 'run':
           if (!haConnected) { ws.send(JSON.stringify({ type: 'error', msg: 'Not connected to HA' })); break; }
