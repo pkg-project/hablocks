@@ -1,0 +1,7 @@
+{
+  "name": "hablocks",
+  "version": "1.1.0",
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

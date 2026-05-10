@@ -96,8 +96,8 @@
 
 <script>
 const $=id=>document.getElementById(id);
-let ws=null,wsC=false,wsMid=1,wsP=new Map(),wsE=new Map();
-let ents=new Map(),scripts=[],cid=null,rts=new Map(),logs=[],logN=0;
+let ws=null,wsC=false;
+let ents=new Map(),scripts=[],cid=null,rts=new Set(),logs=[],logN=0;
 let _savedTok='';
 let workspace=null,sets={lat:51.97,lng:5.67,auto:true};
 const jsGen=javascript.javascriptGenerator,Order=javascript.Order;
@@ -105,37 +105,55 @@ const jsGen=javascript.javascriptGenerator,Order=javascript.Order;
 // Storage
 // Storage: use localStorage (works in add-on and standalone)
 const S={async g(k,fb){try{const v=localStorage.getItem('hab_'+k);return v?JSON.parse(v):fb}catch{return fb}},async s(k,v){try{localStorage.setItem('hab_'+k,JSON.stringify(v))}catch{}}};
-// Add-on mode detection: injected by run.sh at build time
-const ADDON_TOKEN='%%SUPERVISOR_TOKEN%%';
-const ADDON_MODE=ADDON_TOKEN&&!ADDON_TOKEN.startsWith('%%');
+// Backend WebSocket URL (nginx proxies /ws to Node.js on port 8765)
+const BACKEND_WS=(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws';
 
 // Flash saved indicator
 function flashSaved(){const el=$('saved-msg');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000)}
 
 // HA WebSocket
-function setSt(s,m){const el=$('spill');el.className='sp '+(s==='on'?'on':s==='err'?'err':'off');el.querySelector('span').textContent=s==='err'?(m||'error').slice(0,30):s==='on'?'connected':'offline';$('rbtn').disabled=s!=='on';const cb=$('cbtn');if(cb){cb.style.display=s==='on'?'none':'';cb.textContent=s==='on'?'disconnect':'connect'}}
-function wsS(p){return new Promise((r,j)=>{if(!wsC||!ws)return j(new Error('Not connected'));const id=wsMid++;wsP.set(id,{resolve:r,reject:j});ws.send(JSON.stringify({id,...p}))})}
+function setSt(s,m){const el=$('spill');el.className='sp '+(s==='on'?'on':s==='err'?'err':'off');el.querySelector('span').textContent=s==='err'?(m||'error').slice(0,30):s==='on'?'connected':'offline';$('rbtn').disabled=s!=='on';const cb=$('cbtn');if(cb){cb.style.display=s==='on'?'none':'';cb.textContent='connect'}}
+
+function handleMsg(ev){
+  let m;try{m=JSON.parse(ev.data)}catch{return}
+  switch(m.type){
+    case 'ha_status':
+      if(m.status==='connected'){setSt('on');addLog('sys','info','HA connected — '+ents.size+' entities');rEnts()}
+      else{setSt('err','HA disconnected')}
+      break;
+    case 'states':
+      ents.clear();m.data.forEach(s=>ents.set(s.entity_id,s));rEnts();break;
+    case 'state_changed':{
+      const{entity_id:eid,new_state:ns}=m.data?.data||{};
+      if(eid){if(ns)ents.set(eid,ns);else ents.delete(eid);if($('p-ent').classList.contains('act'))rEnts()}break;}
+    case 'running':
+      rts.clear();m.ids.forEach(id=>rts.add(id));
+      $('fr').textContent=rts.size;
+      if(m.subs!=null)$('fu').textContent=m.subs;
+      if(m.scheds!=null)$('fs').textContent=m.scheds;
+      updRun();rScripts();break;
+    case 'log':addLog(m.script||'sys',m.level||'info',m.msg);break;
+    case 'error':addLog('sys','error',m.msg||'Unknown error');break;
+  }
+}
 
 async function toggleConn(){
-  if(wsC){rts.forEach(rt=>rt.destroy());rts.clear();ws.close();ws=null;wsC=false;ents.clear();rEnts();setSt('off');addLog('sys','info','Disconnected');updRun();updFt();return}
+  if(wsC){ws.close();ws=null;wsC=false;ents.clear();rts.clear();rEnts();setSt('off');addLog('sys','info','Disconnected');updRun();updFt();return}
   const tok=_savedTok;
   if(!tok){setSt('err','enter token in ⚙ settings');return}
   try{
-    const wu=(location.protocol==='https:'?'wss://':'ws://')+location.host+'/api/websocket';ws=new WebSocket(wu);
-    await new Promise((res,rej)=>{const tm=setTimeout(()=>{ws.close();rej(new Error('Timeout'))},10000);
+    ws=new WebSocket(BACKEND_WS);
+    await new Promise((res,rej)=>{
+      const tm=setTimeout(()=>{ws.close();rej(new Error('Timeout'))},15000);
+      ws.onopen=()=>ws.send(JSON.stringify({type:'auth',token:tok}));
       ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch{return}
-        if(m.type==='auth_required')ws.send(JSON.stringify({type:'auth',access_token:tok}));
-        else if(m.type==='auth_ok'){clearTimeout(tm);wsC=true;res()}
-        else if(m.type==='auth_invalid'){clearTimeout(tm);rej(new Error(m.message||'Auth failed'))}
-        else if(m.type==='result'){const p=wsP.get(m.id);if(p){wsP.delete(m.id);m.success?p.resolve(m.result):p.reject(new Error(m.error?.message))}}
-        else if(m.type==='event'){const h=wsE.get(m.id);if(h)h(m.event)}};
-      ws.onerror=()=>{clearTimeout(tm);rej(new Error('WebSocket error'))};
+        if(m.type==='auth_ok'){clearTimeout(tm);wsC=true;res()}
+        else if(m.type==='auth_error'){clearTimeout(tm);rej(new Error(m.message||'Auth failed'))}
+        else if(m.type==='error'){clearTimeout(tm);rej(new Error(m.msg||'Error'))}};
+      ws.onerror=()=>{clearTimeout(tm);rej(new Error('Backend unreachable'))};
       ws.onclose=()=>{if(wsC){wsC=false;setSt('off')}}});
-    const states=await wsS({type:'get_states'});ents.clear();states.forEach(s=>ents.set(s.entity_id,s));
-    const sid=wsMid++;wsE.set(sid,ev=>{const eid=ev.data?.entity_id;if(!eid)return;if(ev.data.new_state)ents.set(eid,ev.data.new_state);else ents.delete(eid);rEnts();rts.forEach(rt=>rt.onSC(ev))});
-    ws.send(JSON.stringify({id:sid,type:'subscribe_events',event_type:'state_changed'}));
-    setSt('on');addLog('sys','info','Connected — '+ents.size+' entities');rEnts();
-    flashSaved();
+    ws.onmessage=handleMsg;
+    setSt('on');addLog('sys','info','Connected to backend');
   }catch(e){setSt('err',e.message);addLog('sys','error','Failed: '+e.message);ws=null;wsC=false}
 }
 
@@ -160,93 +178,19 @@ function newScript(){const id='s_'+Date.now();scripts.push({id,name:'script_'+(s
 function selScript(id){if(cid&&workspace){const c=scripts.find(s=>s.id===cid);if(c)c.st=Blockly.serialization.workspaces.save(workspace)}cid=id;const sc=scripts.find(s=>s.id===id);if(!sc)return;$('sname').value=sc.name;if(workspace){workspace.clear();if(sc.st)try{Blockly.serialization.workspaces.load(sc.st,workspace)}catch(e){console.warn(e)}}updRun();rScripts();updCode()}
 function renameScript(n){const sc=scripts.find(s=>s.id===cid);if(sc){sc.name=n;saveAll();rScripts()}}
 function saveScript(){if(!cid||!workspace)return;const sc=scripts.find(s=>s.id===cid);if(sc)sc.st=Blockly.serialization.workspaces.save(workspace);saveAll();flashSaved()}
-function deleteScript(){if(!cid)return;const sc=scripts.find(s=>s.id===cid);if(!confirm('Delete "'+sc?.name+'"?'))return;if(rts.has(cid)){rts.get(cid).destroy();rts.delete(cid)}scripts=scripts.filter(s=>s.id!==cid);if(scripts.length)selScript(scripts[0].id);else{cid=null;workspace?.clear();$('sname').value=''}saveAll();rScripts();updFt()}
+function deleteScript(){if(!cid)return;const sc=scripts.find(s=>s.id===cid);if(!confirm('Delete "'+sc?.name+'"?'))return;if(rts.has(cid)&&wsC)ws.send(JSON.stringify({type:'stop',id:cid}));scripts=scripts.filter(s=>s.id!==cid);if(scripts.length)selScript(scripts[0].id);else{cid=null;workspace?.clear();$('sname').value=''}saveAll();rScripts();updFt()}
 function saveAll(){S.s('hb-scripts',scripts)}
 function rScripts(){$('slist').innerHTML=scripts.map(s=>'<div class="si '+(s.id===cid?'act':'')+'" onclick="selScript(\''+s.id+'\')"><div class="'+(rts.has(s.id)?'dr':'di')+'"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(s.name)+'</span><button class="sd" onclick="event.stopPropagation();delId(\''+s.id+'\')">✕</button></div>').join('');$('rcnt').textContent=rts.size}
-function delId(id){const sc=scripts.find(s=>s.id===id);if(!confirm('Delete "'+sc?.name+'"?'))return;if(rts.has(id)){rts.get(id).destroy();rts.delete(id)}scripts=scripts.filter(s=>s.id!==id);if(id===cid){if(scripts.length)selScript(scripts[0].id);else{cid=null;workspace?.clear();$('sname').value=''}}saveAll();rScripts();updFt()}
+function delId(id){const sc=scripts.find(s=>s.id===id);if(!confirm('Delete "'+sc?.name+'"?'))return;if(rts.has(id)&&wsC)ws.send(JSON.stringify({type:'stop',id}));scripts=scripts.filter(s=>s.id!==id);if(id===cid){if(scripts.length)selScript(scripts[0].id);else{cid=null;workspace?.clear();$('sname').value=''}}saveAll();rScripts();updFt()}
 function updRun(){const r=rts.has(cid);$('rbtn').style.display=r?'none':'';$('sbtn').style.display=r?'':'none';$('rba').innerHTML=r?'<div class="rb"><div class="dot"></div>running</div>':''}
-function updFt(){$('fr').textContent=rts.size;let su=0,sc=0;rts.forEach(rt=>{su+=rt.subCnt;sc+=rt.schCnt});$('fu').textContent=su;$('fs').textContent=sc}
+function updFt(){$('fr').textContent=rts.size}
 function updCode(){if(!workspace)return;try{$('cc').textContent=jsGen.workspaceToCode(workspace)||'// Build automations with blocks above'}catch(e){$('cc').textContent='// Error: '+e.message}}
 
-// ============= RUNTIME ENGINE =============
-function eMatch(p,eid){if(p==='*')return true;if(p instanceof RegExp)return p.test(eid);if(p===eid)return true;if(typeof p==='string'&&(p.includes('*')||p.includes('?')))return new RegExp('^'+p.replace(/[.+^${}()|[\]\\]/g,'\\$&').replace(/\\\*/g,'.*').replace(/\\\?/g,'.')+'$').test(eid);return false}
-function pCF(f,mn,mx){if(f==='*')return null;const s=new Set();for(const p of f.split(',')){if(p.includes('/')){const[r,st]=p.split('/');let a=mn,b=mx;if(r!=='*'){if(r.includes('-'))[a,b]=r.split('-').map(Number);else{a=+r;b=mx}}for(let i=a;i<=b;i+=+st)s.add(i)}else if(p.includes('-')){const[a,b]=p.split('-').map(Number);for(let i=a;i<=b;i++)s.add(i)}else s.add(+p)}return s}
-function pCron(s){const p=s.trim().split(/\s+/);if(p.length!==5)throw new Error('5 cron fields needed');return{mi:pCF(p[0],0,59),hr:pCF(p[1],0,23),d:pCF(p[2],1,31),mo:pCF(p[3],1,12),dw:pCF(p[4],0,6)}}
-function cMatch(c,d){return[[c.mi,d.getMinutes()],[c.hr,d.getHours()],[c.d,d.getDate()],[c.mo,d.getMonth()+1],[c.dw,d.getDay()]].every(([s,v])=>s===null||s.has(v))}
-
-// Sun calc (simplified)
-function sunTimes(lat,lng,date){const r=Math.PI/180,J2k=2451545,dMs=864e5;const tJ=d=>d.valueOf()/dMs-0.5+2440588,fJ=j=>new Date((j+0.5-2440588)*dMs),tD=d=>tJ(d)-J2k;
-const sMA=d=>r*(357.5291+0.98560028*d),eL=M=>{const C=r*(1.9148*Math.sin(M)+0.02*Math.sin(2*M)+0.0003*Math.sin(3*M));return M+C+r*282.9372+Math.PI};
-const dec=(l)=>Math.asin(Math.sin(r*23.4397)*Math.sin(l));
-const lw=r*-lng,phi=r*lat,d=tD(date||new Date()),n=Math.round(d-0.0009-lw/(2*Math.PI)),ds=0.0009+lw/(2*Math.PI)+n;
-const M=sMA(ds),L=eL(M),dc=dec(L),Jn=J2k+ds+0.0053*Math.sin(M)-0.0069*Math.sin(2*L);
-const hA=(h)=>Math.acos((Math.sin(h)-Math.sin(phi)*Math.sin(dc))/(Math.cos(phi)*Math.cos(dc)));
-const res={noon:fJ(Jn)};
-try{const w=hA(r*-0.833);const Js=J2k+(0.0009+(w+lw)/(2*Math.PI)+n)+0.0053*Math.sin(M)-0.0069*Math.sin(2*L);res.sunset=fJ(Js);res.sunrise=fJ(Jn-(Js-Jn))}catch{}
-try{const w=hA(r*-6);const Js=J2k+(0.0009+(w+lw)/(2*Math.PI)+n)+0.0053*Math.sin(M)-0.0069*Math.sin(2*L);res.dusk=fJ(Js);res.dawn=fJ(Jn-(Js-Jn))}catch{}
-return res}
-
-function mapSet(eid,val){if(!wsC)throw new Error('Not connected');const dom=eid.split('.')[0];
-const tog=['light','switch','fan','input_boolean','automation','script','siren','humidifier'];
-if(val&&typeof val==='object'&&val.service)return wsS({type:'call_service',domain:dom,service:val.service,service_data:val.data||{},target:{entity_id:eid}});
-if(tog.includes(dom)){const on=val===true||val==='on'||val===1;return wsS({type:'call_service',domain:dom,service:on?'turn_on':'turn_off',service_data:{},target:{entity_id:eid}})}
-if(dom==='cover')return wsS({type:'call_service',domain:'cover',service:val===true||val==='open'?'open_cover':'close_cover',service_data:{},target:{entity_id:eid}});
-if(dom==='lock')return wsS({type:'call_service',domain:'lock',service:val===true||val==='lock'?'lock':'unlock',service_data:{},target:{entity_id:eid}});
-if(dom==='input_number'||dom==='number')return wsS({type:'call_service',domain:dom,service:'set_value',service_data:{value:+val},target:{entity_id:eid}});
-if(dom==='input_text'||dom==='text')return wsS({type:'call_service',domain:dom,service:'set_value',service_data:{value:''+val},target:{entity_id:eid}});
-if(dom==='input_select'||dom==='select')return wsS({type:'call_service',domain:dom,service:'select_option',service_data:{option:''+val},target:{entity_id:eid}});
-if(dom==='climate'){if(typeof val==='number')return wsS({type:'call_service',domain:'climate',service:'set_temperature',service_data:{temperature:val},target:{entity_id:eid}});return wsS({type:'call_service',domain:'climate',service:'set_hvac_mode',service_data:{hvac_mode:''+val},target:{entity_id:eid}})}
-const on=val===true||val==='on'||val===1;return wsS({type:'call_service',domain:dom,service:on?'turn_on':'turn_off',service_data:{},target:{entity_id:eid}})}
-
-function createRT(sid,sname){
-  const subs=[],tms=new Set(),ivs=new Set(),crons=[],stops=[],vStates=new Map(),namedIv=new Map();
-  let dead=false,nid=1;
-  const safe=(fn,...a)=>{if(dead)return;try{fn(...a)}catch(e){addLog(sname,'error','Uncaught: '+(e.message||e))}};
-  const api={
-    on(p,cb){const id=nid++;subs.push({id,p,cb});return id},subscribe(...a){return api.on(...a)},
-    unsubscribe(id){const i=subs.findIndex(s=>s.id===id);if(i>=0)subs.splice(i,1)},
-    getState(id){const vs=vStates.get(id);if(vs)return{...vs};const e=ents.get(id);if(!e)return null;return{state:e.state,val:e.state,attributes:e.attributes||{},lastChanged:e.last_changed,ts:new Date(e.last_updated).getTime()}},
-    existsState(id){return vStates.has(id)||ents.has(id)},
-    getAttr(id,attr){const s=api.getState(id);return s?s.attributes[attr]:null},
-    setState(id,v){if(vStates.has(id)){const o=vStates.get(id),os=o.state,ns=typeof v==='object'&&v?.state!==undefined?String(v.state):String(v);vStates.set(id,{...o,state:ns,val:ns,ts:Date.now()});for(const s of subs){if(!eMatch(s.p,id))continue;if(ns===os)continue;safe(s.cb,{id,entityId:id,state:ns,oldState:os,val:ns,ts:Date.now()})}return}return mapSet(id,v)},
-    setStateDelayed(id,v,ms,clear){if(clear!==false)api.clearStateDelayed(id);const t=setTimeout(()=>{tms.delete(t);safe(()=>api.setState(id,v))},ms);tms.add(t);return t},
-    clearStateDelayed(id){},
-    createState(name,init,common){const fid=name.includes('.')?name:'virtual.'+name;vStates.set(fid,{state:String(init??''),val:init,ts:Date.now(),attributes:common||{}});return fid},
-    deleteState(name){const fid=name.includes('.')?name:'virtual.'+name;return vStates.delete(fid)},
-    callService(dom,svc,data,target){return wsS({type:'call_service',domain:dom,service:svc,service_data:data||{},target:target||{}})},
-    schedule(cron,cb){const parsed=pCron(cron);const id=nid++;crons.push({id,parsed,cb});return id},
-    clearSchedule(id){const i=crons.findIndex(c=>c.id===id);if(i>=0)crons.splice(i,1)},
-    setTimeout(fn,ms){const t=setTimeout(()=>{tms.delete(t);safe(fn)},ms);tms.add(t);return t},
-    setInterval(fn,ms,name){const t=setInterval(()=>safe(fn),ms);ivs.add(t);if(name)namedIv.set(name,t);return t},
-    clearTimeout(t){clearTimeout(t);tms.delete(t)},
-    clearInterval(t){if(typeof t==='string'){const v=namedIv.get(t);if(v){clearInterval(v);ivs.delete(v);namedIv.delete(t)}}else{clearInterval(t);ivs.delete(t)}},
-    log:Object.assign(m=>addLog(sname,'info',''+m),{info:m=>addLog(sname,'info',''+m),warn:m=>addLog(sname,'warn',''+m),error:m=>addLog(sname,'error',''+m),debug:m=>addLog(sname,'debug',''+m)}),
-    console:{log:m=>addLog(sname,'info',''+m),warn:m=>addLog(sname,'warn',''+m),error:m=>addLog(sname,'error',''+m)},
-    onStop(cb){stops.push(cb)},wait(ms){return new Promise(r=>{const t=setTimeout(()=>{tms.delete(t);r()},ms);tms.add(t)})},
-    formatDate(d,f){const dt=d instanceof Date?d:new Date(d);const pad=(n)=>String(n).padStart(2,'0');return(f||'YYYY-MM-DD hh:mm:ss').replace('YYYY',dt.getFullYear()).replace('MM',pad(dt.getMonth()+1)).replace('DD',pad(dt.getDate())).replace('hh',pad(dt.getHours())).replace('mm',pad(dt.getMinutes())).replace('ss',pad(dt.getSeconds()))},
-    getAstroDate(ev){const t=sunTimes(sets.lat,sets.lng,new Date());return t[ev]||null},
-    isAstroDay(){const t=sunTimes(sets.lat,sets.lng,new Date());if(!t.sunrise||!t.sunset)return true;const now=Date.now();return now>=t.sunrise.getTime()&&now<=t.sunset.getTime()},
-    toNumber(v){return Number(v)},toBoolean(v){return!!v&&v!=='false'&&v!=='0'&&v!=='off'},
-    typeOf(v){if(v===null)return'null';if(Array.isArray(v))return'array';return typeof v},
-    parseJSON(s){try{return JSON.parse(s)}catch{return null}},toJSON(o){return JSON.stringify(o)},
-    httpGet(url){return fetch(url).then(r=>r.text()).catch(e=>{api.log.error('httpGet failed: '+e.message);return null})},
-    sendNotification(msg,title){return api.callService('persistent_notification','create',{message:msg,title:title||'Automation'})},
-    sendToMobile(svc,msg,title,data){return api.callService('notify',svc||'notify',{message:msg,title:title||'HA Blocks',...(data||{})})},
-  };
-  return{api,
-    onSC(ev){if(dead)return;const{entity_id:eid,new_state:ns,old_state:os}=ev.data||{};if(!eid)return;for(const s of subs){if(!eMatch(s.p,eid))continue;safe(s.cb,{id:eid,entityId:eid,state:ns?.state,oldState:os?.state,newState:ns,previousState:os,attributes:ns?.attributes,ts:Date.now()})}},
-    tickCron(d){if(dead)return;for(const c of crons)if(cMatch(c.parsed,d))safe(c.cb)},
-    destroy(){dead=true;stops.forEach(cb=>{try{cb()}catch{}});tms.forEach(t=>clearTimeout(t));ivs.forEach(t=>clearInterval(t));tms.clear();ivs.clear();subs.length=0;crons.length=0;stops.length=0},
-    get subCnt(){return subs.length},get schCnt(){return crons.length}};
-}
-
-function runScript(){if(!cid||!workspace)return;saveScript();const sc=scripts.find(s=>s.id===cid);if(!sc)return;if(rts.has(sc.id)){rts.get(sc.id).destroy();rts.delete(sc.id)}
-const code=jsGen.workspaceToCode(workspace),rt=createRT(sc.id,sc.name);
-try{const fn=new Function('on','subscribe','unsubscribe','getState','setState','existsState','getAttr','setStateDelayed','clearStateDelayed','createState','deleteState','callService','schedule','clearSchedule','setTimeout','setInterval','clearTimeout','clearInterval','log','console','onStop','wait','sleep','formatDate','getAstroDate','isAstroDay','toNumber','toBoolean','typeOf','parseJSON','toJSON','httpGet','sendNotification','sendToMobile',code);
-fn(rt.api.on,rt.api.subscribe,rt.api.unsubscribe,rt.api.getState,rt.api.setState,rt.api.existsState,rt.api.getAttr,rt.api.setStateDelayed,rt.api.clearStateDelayed,rt.api.createState,rt.api.deleteState,rt.api.callService,rt.api.schedule,rt.api.clearSchedule,rt.api.setTimeout,rt.api.setInterval,rt.api.clearTimeout,rt.api.clearInterval,rt.api.log,rt.api.console,rt.api.onStop,rt.api.wait,rt.api.wait,rt.api.formatDate,rt.api.getAstroDate,rt.api.isAstroDay,rt.api.toNumber,rt.api.toBoolean,rt.api.typeOf,rt.api.parseJSON,rt.api.toJSON,rt.api.httpGet,rt.api.sendNotification,rt.api.sendToMobile);
-rts.set(sc.id,rt);addLog(sc.name,'info','Script started')}catch(e){rt.destroy();addLog(sc.name,'error','Start failed: '+e.message)}updRun();rScripts();updFt()}
-function stopScript(){if(!cid)return;const rt=rts.get(cid);if(rt){rt.destroy();rts.delete(cid)}const sc=scripts.find(s=>s.id===cid);if(sc)addLog(sc.name,'info','Stopped');updRun();rScripts();updFt()}
-setInterval(()=>{const now=new Date();if(now.getSeconds()===0)rts.forEach(rt=>rt.tickCron(now));updFt()},1000);
+// ============= RUNTIME (runs in Node.js backend) =============
+function runScript(){if(!cid||!workspace||!wsC)return;saveScript();const sc=scripts.find(s=>s.id===cid);if(!sc)return;
+const code=jsGen.workspaceToCode(workspace);
+ws.send(JSON.stringify({type:'run',id:cid,name:sc.name,code,opts:{lat:sets.lat,lng:sets.lng}}))}
+function stopScript(){if(!cid||!wsC)return;ws.send(JSON.stringify({type:'stop',id:cid}))}
 
 // ============= BLOCKLY BLOCKS =============
 function defBlocks(){
@@ -446,7 +390,7 @@ async function init(){
   rScripts();if(scripts.length)selScript(scripts[0].id);
   
   new ResizeObserver(function(){Blockly.svgResize(workspace)}).observe($('bd'));
-  // Auto-connect if a long-lived token is saved; otherwise prompt via settings
+  // Auto-connect to backend (backend auto-connects to HA if token is saved)
   if(_savedTok){setTimeout(()=>toggleConn(),300);}else{setSt('err','enter token in ⚙ settings')}
 }
 init();
