@@ -130,7 +130,7 @@ async function toggleConn(){
         else if(m.type==='result'){const p=wsP.get(m.id);if(p){wsP.delete(m.id);m.success?p.resolve(m.result):p.reject(new Error(m.error?.message))}}
         else if(m.type==='event'){const h=wsE.get(m.id);if(h)h(m.event)}};
       ws.onerror=()=>{clearTimeout(tm);rej(new Error('WebSocket error'))};
-      ws.onclose=()=>{wsC=false;setSt('off')}});
+      ws.onclose=()=>{if(wsC){wsC=false;setSt('off')}}});
     const states=await wsS({type:'get_states'});ents.clear();states.forEach(s=>ents.set(s.entity_id,s));
     const sid=wsMid++;wsE.set(sid,ev=>{const eid=ev.data?.entity_id;if(!eid)return;if(ev.data.new_state)ents.set(eid,ev.data.new_state);else ents.delete(eid);rEnts();rts.forEach(rt=>rt.onSC(ev))});
     ws.send(JSON.stringify({id:sid,type:'subscribe_events',event_type:'state_changed'}));

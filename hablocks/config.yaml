@@ -1,6 +1,6 @@
 ---
 name: HA Blocks
-version: "1.0.0"
+version: "1.0.4"
 slug: hablocks
 description: >-
   Visual Blockly-based automation builder for Home Assistant.
