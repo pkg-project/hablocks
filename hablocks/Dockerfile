@@ -10,7 +10,6 @@ COPY rootfs/etc/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY rootfs/var/www/ /var/www/
 
 # Copy run script
-COPY rootfs/etc/s6-overlay/ /etc/s6-overlay/
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 

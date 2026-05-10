@@ -1,35 +1,16 @@
-#!/usr/bin/with-contenv bashio
-# ==============================================================================
+#!/bin/sh
 # HA Blocks Add-on: run.sh
-# Starts the nginx web server for the Blockly automation builder
-# ==============================================================================
+set -e
 
-declare ingress_entry
-declare ha_url
-declare supervisor_token
+echo "[INFO] Starting HA Blocks..."
 
-bashio::log.info "Starting HA Blocks..."
+INGRESS_PATH="${INGRESS_ENTRY:-/}"
+echo "[INFO] Ingress path: ${INGRESS_PATH}"
 
-# Get the ingress entry path
-ingress_entry=$(bashio::addon.ingress_entry)
-bashio::log.info "Ingress entry: ${ingress_entry}"
-
-# Get the HA URL (internal) and Supervisor token for auto-connection
-ha_url="http://supervisor/core"
-supervisor_token="${SUPERVISOR_TOKEN}"
-
-# Inject ingress path and HA connection info into the HTML
-bashio::log.info "Configuring application..."
-
-# Replace placeholders in the HTML with actual values
-sed -i "s|%%INGRESS_PATH%%|${ingress_entry}|g" /var/www/index.html
+sed -i "s|%%INGRESS_PATH%%|${INGRESS_PATH}|g" /var/www/index.html
 sed -i "s|%%HA_URL%%|/api/hassio/homeassistant|g" /var/www/index.html
-sed -i "s|%%SUPERVISOR_TOKEN%%|${supervisor_token}|g" /var/www/index.html
+sed -i "s|%%SUPERVISOR_TOKEN%%|${SUPERVISOR_TOKEN:-}|g" /var/www/index.html
+sed -i "s|%%INGRESS_PATH%%|${INGRESS_PATH}|g" /etc/nginx/nginx.conf
 
-# Update nginx config with ingress path
-sed -i "s|%%INGRESS_PATH%%|${ingress_entry}|g" /etc/nginx/nginx.conf
-
-bashio::log.info "Starting nginx..."
-
-# Start nginx in foreground
+echo "[INFO] Starting nginx..."
 exec nginx -g "daemon off;"
