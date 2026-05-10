@@ -105,8 +105,8 @@ const jsGen=javascript.javascriptGenerator,Order=javascript.Order;
 // Storage
 // Storage: use localStorage (works in add-on and standalone)
 const S={async g(k,fb){try{const v=localStorage.getItem('hab_'+k);return v?JSON.parse(v):fb}catch{return fb}},async s(k,v){try{localStorage.setItem('hab_'+k,JSON.stringify(v))}catch{}}};
-// Backend WebSocket URL (nginx proxies /ws to Node.js on port 8765)
-const BACKEND_WS=(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws';
+// Backend WebSocket URL — must include ingress path prefix when served via HA ingress
+const BACKEND_WS=(location.protocol==='https:'?'wss://':'ws://')+location.host+location.pathname.replace(/\/$/,'')+'/ws';
 
 // Flash saved indicator
 function flashSaved(){const el=$('saved-msg');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000)}
