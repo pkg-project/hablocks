@@ -5,9 +5,33 @@ const http = require('http');
 const fs = require('fs');
 
 const BACKEND_PORT = 8765;
-const HA_WS_URL = 'ws://supervisor/core/websocket';
 const TOKEN_FILE = '/data/ha_token';
 const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN || '';
+
+// Discover HA Core WebSocket URL via supervisor network info
+let HA_WS_URL = 'ws://homeassistant:8123/api/websocket'; // default, overridden at startup
+
+function discoverHaUrl() {
+  return new Promise(resolve => {
+    const req = http.get('http://supervisor/network/info', { headers: { Authorization: `Bearer ${SUPERVISOR_TOKEN}` } }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        try {
+          const info = JSON.parse(d);
+          const iface = (info.data?.interfaces || []).find(i => i.primary && i.ipv4?.address?.length);
+          if (iface) {
+            const ip = iface.ipv4.address[0].split('/')[0];
+            HA_WS_URL = `ws://${ip}:8123/api/websocket`;
+            sysLog(`HA Core at ${HA_WS_URL}`);
+          }
+        } catch {}
+        resolve();
+      });
+    });
+    req.on('error', () => resolve());
+  });
+}
 
 // ── State ────────────────────────────────────────────────────
 let haWs = null, haConnected = false, haToken = null, haMsgId = 1;
@@ -36,11 +60,10 @@ function broadcast(msg) {
 function haConnect(token) {
   return new Promise((resolve, reject) => {
     if (haConnected) { resolve(); return; }
-    const ws = new WebSocket(HA_WS_URL, { headers: { Authorization: `Bearer ${SUPERVISOR_TOKEN}` } });
+    sysLog('Connecting to HA at ' + HA_WS_URL);
+    const ws = new WebSocket(HA_WS_URL);
     let settled = false;
     const settle = err => { if (settled) return; settled = true; err ? reject(err) : resolve(); };
-
-    sysLog('Connecting to HA at ' + HA_WS_URL + ' (supervisor token: ' + (SUPERVISOR_TOKEN ? 'present' : 'MISSING') + ')');
     ws.on('open', () => sysLog('HA WS open'));
     ws.on('message', data => {
       let m; try { m = JSON.parse(data); } catch { return; }
@@ -349,7 +372,9 @@ wss.on('connection', ws => {
 });
 
 sysLog(`Runtime started on port ${BACKEND_PORT}`);
-if (haToken) {
-  sysLog('Auto-connecting with saved token...');
-  haConnect(haToken).catch(e => sysLog('Auto-connect failed: ' + e.message));
-}
+discoverHaUrl().then(() => {
+  if (haToken) {
+    sysLog('Auto-connecting with saved token...');
+    haConnect(haToken).catch(e => sysLog('Auto-connect failed: ' + e.message));
+  }
+});
