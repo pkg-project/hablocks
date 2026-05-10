@@ -7,6 +7,7 @@ const fs = require('fs');
 const BACKEND_PORT = 8765;
 const HA_WS_URL = 'ws://supervisor/core/websocket';
 const TOKEN_FILE = '/data/ha_token';
+const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN || '';
 
 // ── State ────────────────────────────────────────────────────
 let haWs = null, haConnected = false, haToken = null, haMsgId = 1;
@@ -35,10 +36,11 @@ function broadcast(msg) {
 function haConnect(token) {
   return new Promise((resolve, reject) => {
     if (haConnected) { resolve(); return; }
-    const ws = new WebSocket(HA_WS_URL);
+    const ws = new WebSocket(HA_WS_URL, { headers: { Authorization: `Bearer ${SUPERVISOR_TOKEN}` } });
     let settled = false;
     const settle = err => { if (settled) return; settled = true; err ? reject(err) : resolve(); };
 
+    sysLog('Connecting to HA at ' + HA_WS_URL + ' (supervisor token: ' + (SUPERVISOR_TOKEN ? 'present' : 'MISSING') + ')');
     ws.on('open', () => sysLog('HA WS open'));
     ws.on('message', data => {
       let m; try { m = JSON.parse(data); } catch { return; }
