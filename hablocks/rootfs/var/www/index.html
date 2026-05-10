@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>HA Blocks — Visual Automations for Home Assistant</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/blockly/12.3.1/blockly.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/blockly/12.3.1/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/blockly/12.3.1/msg/en.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--d:#08090b;--p:#0e1015;--s:#151920;--e:#1c2230;--b:#232a38;--bb:#2e3a50;--t:#e2dfd8;--t2:#8a8e99;--td:#555a66;--a:#e8952f;--ag:#e8952f40;--g:#5ec489;--gd:#5ec48930;--r:#e85d5d;--rd:#e85d5d30;--bl:#5da4e8;--pu:#a07de8;--fd:'Fraunces',serif;--fb:'DM Sans',system-ui,sans-serif;--fm:'DM Mono','Menlo',monospace}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%;overflow:hidden;background:var(--d);color:var(--t);font-family:var(--fb)}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--b);border-radius:3px}
+#app{display:flex;flex-direction:column;height:100vh}
+#hdr{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--b);background:var(--p);gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}.brand-icon{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--a),#d4701f);display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px var(--ag)}
+.brand-icon svg{width:16px;height:16px}.brand-name{font-family:var(--fd);font-weight:600;font-size:19px;letter-spacing:-0.02em}.brand-name em{color:var(--a);font-style:italic}
+.brand-sub{font-family:var(--fm);font-size:9px;color:var(--td);letter-spacing:0.08em;text-transform:uppercase;margin-top:-2px}
+.hac{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.inp{background:var(--d);border:1px solid var(--b);border-radius:5px;padding:5px 10px;color:var(--t);font-size:12px;font-family:var(--fm);outline:none;transition:border-color 0.2s}.inp:focus{border-color:var(--a)}.inp:disabled{opacity:0.4}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:5px;font-size:11px;font-family:var(--fm);font-weight:500;border:1px solid var(--b);background:var(--s);color:var(--t);cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--e);border-color:var(--bb)}.btn:disabled{opacity:0.35;cursor:not-allowed}
+.btn-a{background:var(--a);color:var(--d);border-color:var(--a);font-weight:600}.btn-a:hover:not(:disabled){background:#f0a340}
+.btn-g{background:var(--g);color:var(--d);border-color:var(--g);font-weight:600}.btn-g:hover:not(:disabled){background:#6dd49a}
+.btn-r{color:var(--r);border-color:var(--rd);background:transparent}.btn-r:hover:not(:disabled){background:var(--rd)}
+.sp{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:10px;font-family:var(--fm)}
+.sp.off{background:#555a6620;color:var(--td);border:1px solid #555a6640}.sp.on{background:var(--gd);color:var(--g);border:1px solid #5ec48950}.sp.err{background:var(--rd);color:var(--r);border:1px solid #e85d5d50}
+.sp .dot{width:5px;height:5px;border-radius:50%;background:currentColor}.sp.on .dot{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 currentColor}50%{box-shadow:0 0 0 4px transparent}}
+.saved-msg{font-family:var(--fm);font-size:10px;color:var(--g);opacity:0;transition:opacity 0.3s}.saved-msg.show{opacity:1}
+#main{flex:1;display:flex;min-height:0}
+#sp{width:210px;flex-shrink:0;background:var(--p);border-right:1px solid var(--b);display:flex;flex-direction:column}
+.sh{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--b)}.sh h3{font-family:var(--fm);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--td)}
+.sl{flex:1;overflow-y:auto;padding:6px}
+.si{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:5px;cursor:pointer;font-family:var(--fm);font-size:12px;color:var(--t2);transition:all 0.12s;position:relative}
+.si:hover{background:var(--s);color:var(--t)}.si.act{background:var(--s);color:var(--t)}.si.act::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:2px;background:var(--a);border-radius:2px}
+.dr{width:6px;height:6px;border-radius:50%;background:var(--g);flex-shrink:0;animation:pulse 2s infinite}.di{width:6px;height:6px;border-radius:50%;background:var(--td);flex-shrink:0;opacity:0.3}
+.sd{background:none;border:none;color:var(--td);cursor:pointer;padding:2px;border-radius:3px;display:flex;opacity:0;transition:opacity 0.15s;margin-left:auto}.si:hover .sd{opacity:1}.sd:hover{color:var(--r);background:var(--rd)}
+.ss{padding:8px 12px;border-top:1px solid var(--b);font-family:var(--fm);font-size:10px;color:var(--td)}.ss div{display:flex;justify-content:space-between}
+#wa{flex:1;display:flex;flex-direction:column;min-width:0}
+#stb{display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid var(--b);background:var(--p);flex-shrink:0}
+#bc{flex:1;position:relative;background:var(--s);min-height:200px}#bd{position:absolute;top:0;left:0;right:0;bottom:0}
+.rb{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;background:var(--gd);color:var(--g);font-family:var(--fm);font-size:10px;font-weight:600}.rb .dot{width:5px;height:5px;border-radius:50%;background:var(--g);animation:pulse 2s infinite}
+#bp{height:200px;flex-shrink:0;border-top:1px solid var(--b);display:flex;flex-direction:column;background:var(--p)}
+.tb{display:flex;border-bottom:1px solid var(--b);flex-shrink:0}
+.tab{padding:7px 14px;font-size:11px;font-family:var(--fm);color:var(--td);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;display:flex;align-items:center;gap:5px}
+.tab:hover{color:var(--t2)}.tab.act{color:var(--a);border-bottom-color:var(--a)}.tab .cnt{background:var(--e);padding:1px 5px;border-radius:3px;font-size:9px}
+.pane{flex:1;overflow:auto;display:none}.pane.act{display:block}
+#cc{padding:12px 16px;font-family:var(--fm);font-size:12px;line-height:1.7;color:var(--t2);white-space:pre-wrap;word-break:break-all;tab-size:2}
+#lc{padding:8px 12px;font-family:var(--fm);font-size:11.5px;line-height:1.6}
+.le{padding:2px 0;display:flex;gap:8px;animation:lf .3s ease-out}@keyframes lf{from{opacity:0;transform:translateY(-3px)}to{opacity:1}}
+.lt{color:var(--td);flex-shrink:0}.ll{font-weight:600;flex-shrink:0;text-transform:uppercase;min-width:40px}
+.ll.info{color:var(--g)}.ll.warn{color:var(--a)}.ll.error{color:var(--r)}.ll.debug{color:var(--td)}
+.lm{color:var(--t);word-break:break-word}.ls{color:var(--td);flex-shrink:0}
+.es{width:100%;background:var(--d);border:none;border-bottom:1px solid var(--b);padding:7px 12px;color:var(--t);font-family:var(--fm);font-size:11.5px;outline:none}.es:focus{border-bottom-color:var(--a)}
+.er{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;border-bottom:1px solid #151920;cursor:pointer;transition:background 0.1s;font-family:var(--fm);font-size:11.5px}.er:hover{background:var(--s)}
+.ev.on{color:var(--g)}.ev.off{color:var(--td)}.ev.ot{color:var(--a)}
+#ft{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:5px 16px;border-top:1px solid var(--b);background:var(--p);font-family:var(--fm);font-size:10px;color:var(--td)}
+.blocklyMainBackground{fill:var(--s)!important}.blocklyToolboxDiv{background:var(--p)!important;border-right:1px solid var(--b)!important}
+.blocklyFlyoutBackground{fill:var(--p)!important;fill-opacity:0.97!important}.blocklyScrollbarHandle{fill:var(--b)!important}.blocklyTreeRow{height:32px!important;line-height:32px!important}
+.modal-bg{position:fixed;inset:0;background:#00000080;z-index:1000;display:flex;align-items:center;justify-content:center}.modal{background:var(--p);border:1px solid var(--b);border-radius:10px;padding:24px;width:420px;max-width:90vw}
+.modal h2{font-family:var(--fd);font-size:18px;margin-bottom:16px}.modal label{display:block;font-family:var(--fm);font-size:11px;color:var(--td);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em}
+.modal .inp{width:100%;margin-bottom:12px}.modal .br{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="hdr">
+<div class="brand"><div class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#08090b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div><div><div class="brand-name">ha<em>blocks</em></div><div class="brand-sub">visual automations · home assistant</div></div></div>
+<div class="hac">
+<input id="ha-url" class="inp" placeholder="https://homeassistant.local:8123" style="width:240px"/>
+<div style="position:relative"><input id="ha-token" class="inp" type="password" placeholder="long-lived access token" style="width:190px;padding-right:28px"/>
+<button onclick="document.getElementById('ha-token').type=document.getElementById('ha-token').type==='password'?'text':'password'" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--td);cursor:pointer;padding:2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+<div id="spill" class="sp off"><div class="dot"></div><span>offline</span></div>
+<button id="cbtn" class="btn btn-a" onclick="toggleConn()">connect</button>
+<span id="saved-msg" class="saved-msg">✓ saved</span>
+<button class="btn" onclick="showSettings()" title="Settings">⚙</button>
+</div>
+</div>
+<div id="main">
+<div id="sp"><div class="sh"><h3>Scripts</h3><button class="btn" onclick="newScript()" style="padding:3px 8px;font-size:10px">+ new</button></div><div id="slist" class="sl"></div><div class="ss"><div><span>entities</span><span id="ecnt" style="color:var(--g)">0</span></div><div><span>running</span><span id="rcnt" style="color:var(--a)">0</span></div></div></div>
+<div id="wa">
+<div id="stb"><span style="color:var(--td);font-size:12px">#</span><input id="sname" class="inp" placeholder="script name" style="background:transparent;border:none;padding:2px 4px;font-weight:600;font-size:13px;width:200px" onchange="renameScript(this.value)"/><span id="udot" style="color:var(--a);font-size:14px;display:none">●</span><div id="rba"></div><div style="flex:1"></div>
+<button class="btn" onclick="saveScript()">💾 save</button>
+<button id="rbtn" class="btn btn-g" onclick="runScript()" disabled>▶ run</button>
+<button id="sbtn" class="btn btn-r" onclick="stopScript()" style="display:none">■ stop</button>
+<button class="btn btn-r" onclick="deleteScript()" style="padding:5px 7px" title="Delete">✕</button></div>
+<div id="bc"><div id="bd"></div></div>
+<div id="bp">
+<div class="tb"><div class="tab act" data-t="code" onclick="swTab(this)">{} code</div><div class="tab" data-t="log" onclick="swTab(this)">log <span id="lcnt" class="cnt">0</span></div><div class="tab" data-t="ent" onclick="swTab(this)">entities</div><div style="flex:1"></div><button onclick="logs=[];$('lc').innerHTML='';$('lcnt').textContent='0'" style="background:none;border:none;color:var(--td);cursor:pointer;padding:4px 10px;font-family:var(--fm);font-size:10px">clear</button></div>
+<div id="p-code" class="pane act"><div id="cc">// Build automations with blocks above</div></div>
+<div id="p-log" class="pane"><div id="lc"></div></div>
+<div id="p-ent" class="pane"><input class="es" placeholder="search entities..." oninput="rEnts(this.value)"/><div id="elist" style="overflow-y:auto"></div></div>
+</div></div></div>
+<div id="ft"><div style="display:flex;gap:14px"><span>⚡ <span id="fr">0</span> running</span><span>🕐 <span id="fs">0</span> schedules</span><span>📡 <span id="fu">0</span> subs</span></div><span>ctrl/cmd+S save · credentials + blocks persist</span></div>
+</div>
+<div id="setmod" class="modal-bg" style="display:none" onclick="if(event.target===this)this.style.display='none'"><div class="modal"><h2>Settings</h2><label>Latitude (for astro)</label><input id="slat" class="inp" type="number" step="0.0001" placeholder="51.97"/><label>Longitude (for astro)</label><input id="slng" class="inp" type="number" step="0.0001" placeholder="5.67"/><label>Auto-connect on load</label><select id="sauto" class="inp"><option value="1">Yes</option><option value="0">No</option></select><div class="br"><button class="btn" onclick="$('setmod').style.display='none'">cancel</button><button class="btn btn-a" onclick="saveSets()">save</button></div></div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+let ws=null,wsC=false,wsMid=1,wsP=new Map(),wsE=new Map();
+let ents=new Map(),scripts=[],cid=null,rts=new Map(),logs=[],logN=0;
+let workspace=null,sets={lat:51.97,lng:5.67,auto:true};
+const jsGen=javascript.javascriptGenerator,Order=javascript.Order;
+
+// Storage
+// Storage: use localStorage (works in add-on and standalone)
+const S={async g(k,fb){try{const v=localStorage.getItem('hab_'+k);return v?JSON.parse(v):fb}catch{return fb}},async s(k,v){try{localStorage.setItem('hab_'+k,JSON.stringify(v))}catch{}}};
+// Add-on mode detection: injected by run.sh at build time
+const ADDON_TOKEN='%%SUPERVISOR_TOKEN%%';
+const ADDON_MODE=ADDON_TOKEN&&!ADDON_TOKEN.startsWith('%%');
+
+// Flash saved indicator
+function flashSaved(){const el=$('saved-msg');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000)}
+
+// HA WebSocket
+function setSt(s,m){const el=$('spill');el.className='sp '+(s==='on'?'on':s==='err'?'err':'off');el.querySelector('span').textContent=s==='err'?(m||'error').slice(0,30):s==='on'?'connected':'offline';$('cbtn').textContent=s==='on'?'disconnect':'connect';$('cbtn').className=s==='on'?'btn':'btn btn-a';$('rbtn').disabled=s!=='on';$('ha-url').disabled=s==='on';$('ha-token').disabled=s==='on'}
+function wsS(p){return new Promise((r,j)=>{if(!wsC||!ws)return j(new Error('Not connected'));const id=wsMid++;wsP.set(id,{resolve:r,reject:j});ws.send(JSON.stringify({id,...p}))})}
+
+async function toggleConn(){
+  if(wsC){rts.forEach(rt=>rt.destroy());rts.clear();ws.close();ws=null;wsC=false;ents.clear();rEnts();setSt('off');addLog('sys','info','Disconnected');updRun();updFt();return}
+  const url=$('ha-url').value.trim(),tok=$('ha-token').value.trim();
+  if(!url||!tok){setSt('err','need URL + token');return}
+  try{
+    const wu=ADDON_MODE?(location.protocol==='https:'?'wss://':'ws://')+location.host+'/api/websocket':url.replace(/^http/,'ws').replace(/\/+$/,'')+'/api/websocket';ws=new WebSocket(wu);
+    await new Promise((res,rej)=>{const tm=setTimeout(()=>{ws.close();rej(new Error('Timeout'))},10000);
+      ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch{return}
+        if(m.type==='auth_required')ws.send(JSON.stringify({type:'auth',access_token:tok}));
+        else if(m.type==='auth_ok'){clearTimeout(tm);wsC=true;res()}
+        else if(m.type==='auth_invalid'){clearTimeout(tm);rej(new Error(m.message||'Auth failed'))}
+        else if(m.type==='result'){const p=wsP.get(m.id);if(p){wsP.delete(m.id);m.success?p.resolve(m.result):p.reject(new Error(m.error?.message))}}
+        else if(m.type==='event'){const h=wsE.get(m.id);if(h)h(m.event)}};
+      ws.onerror=()=>{clearTimeout(tm);rej(new Error('WebSocket error'))};
+      ws.onclose=()=>{wsC=false;setSt('off')}});
+    const states=await wsS({type:'get_states'});ents.clear();states.forEach(s=>ents.set(s.entity_id,s));
+    const sid=wsMid++;wsE.set(sid,ev=>{const eid=ev.data?.entity_id;if(!eid)return;if(ev.data.new_state)ents.set(eid,ev.data.new_state);else ents.delete(eid);rEnts();rts.forEach(rt=>rt.onSC(ev))});
+    ws.send(JSON.stringify({id:sid,type:'subscribe_events',event_type:'state_changed'}));
+    setSt('on');addLog('sys','info','Connected — '+ents.size+' entities');rEnts();
+    S.s('ha-url',url);S.s('ha-token',tok);flashSaved();
+  }catch(e){setSt('err',e.message);addLog('sys','error','Failed: '+e.message);ws=null;wsC=false}
+}
+
+function showSettings(){$('slat').value=sets.lat;$('slng').value=sets.lng;$('sauto').value=sets.auto?'1':'0';$('setmod').style.display=''}
+function saveSets(){sets.lat=parseFloat($('slat').value)||51.97;sets.lng=parseFloat($('slng').value)||5.67;sets.auto=$('sauto').value==='1';S.s('ha-sets',sets);$('setmod').style.display='none';addLog('sys','info','Settings saved');flashSaved()}
+
+// Logging
+function addLog(sc,lv,msg){const e={id:++logN,t:Date.now(),sc,lv,msg:String(msg)};logs.push(e);if(logs.length>500)logs=logs.slice(-400);$('lcnt').textContent=logs.length;if($('p-log').classList.contains('act'))appLog(e)}
+function appLog(l){const el=$('lc'),t=new Date(l.t).toLocaleTimeString('en-GB',{hour12:false}),d=document.createElement('div');d.className='le';d.innerHTML='<span class="lt">'+t+'</span><span class="ll '+l.lv+'">'+l.lv+'</span><span class="ls">['+esc(l.sc)+']</span><span class="lm">'+esc(l.msg)+'</span>';el.appendChild(d);el.scrollTop=el.scrollHeight}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// Entities
+function rEnts(q){$('ecnt').textContent=ents.size;q=(q||'').toLowerCase();const el=$('elist');if(!el)return;
+const arr=Array.from(ents.values()).filter(e=>!q||e.entity_id.includes(q)||(e.attributes?.friendly_name||'').toLowerCase().includes(q)).sort((a,b)=>a.entity_id.localeCompare(b.entity_id)).slice(0,200);
+el.innerHTML=arr.map(e=>{const c=e.state==='on'||e.state==='home'?'on':e.state==='off'||e.state==='unavailable'?'off':'ot';return'<div class="er" onclick="navigator.clipboard?.writeText(\''+e.entity_id+'\')"><span>'+e.entity_id+'</span><span class="ev '+c+'">'+esc(e.state).slice(0,20)+'</span></div>'}).join('')}
+
+// Tabs
+function swTab(el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('act'));el.classList.add('act');document.querySelectorAll('.pane').forEach(p=>p.classList.remove('act'));$('p-'+el.dataset.t).classList.add('act');if(el.dataset.t==='log'){$('lc').innerHTML='';logs.forEach(l=>appLog(l))}if(el.dataset.t==='ent')rEnts()}
+
+// Scripts
+function newScript(){const id='s_'+Date.now();scripts.push({id,name:'script_'+(scripts.length+1),st:null});selScript(id);saveAll()}
+function selScript(id){if(cid&&workspace){const c=scripts.find(s=>s.id===cid);if(c)c.st=Blockly.serialization.workspaces.save(workspace)}cid=id;const sc=scripts.find(s=>s.id===id);if(!sc)return;$('sname').value=sc.name;if(workspace){workspace.clear();if(sc.st)try{Blockly.serialization.workspaces.load(sc.st,workspace)}catch(e){console.warn(e)}}updRun();rScripts();updCode()}
+function renameScript(n){const sc=scripts.find(s=>s.id===cid);if(sc){sc.name=n;saveAll();rScripts()}}
+function saveScript(){if(!cid||!workspace)return;const sc=scripts.find(s=>s.id===cid);if(sc)sc.st=Blockly.serialization.workspaces.save(workspace);saveAll();$('udot').style.display='none';flashSaved()}
+function deleteScript(){if(!cid)return;const sc=scripts.find(s=>s.id===cid);if(!confirm('Delete "'+sc?.name+'"?'))return;if(rts.has(cid)){rts.get(cid).destroy();rts.delete(cid)}scripts=scripts.filter(s=>s.id!==cid);if(scripts.length)selScript(scripts[0].id);else{cid=null;workspace?.clear();$('sname').value=''}saveAll();rScripts();updFt()}
+function saveAll(){S.s('hb-scripts',scripts)}
+function rScripts(){$('slist').innerHTML=scripts.map(s=>'<div class="si '+(s.id===cid?'act':'')+'" onclick="selScript(\''+s.id+'\')"><div class="'+(rts.has(s.id)?'dr':'di')+'"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(s.name)+'</span><button class="sd" onclick="event.stopPropagation();delId(\''+s.id+'\')">✕</button></div>').join('');$('rcnt').textContent=rts.size}
+function delId(id){const sc=scripts.find(s=>s.id===id);if(!confirm('Delete "'+sc?.name+'"?'))return;if(rts.has(id)){rts.get(id).destroy();rts.delete(id)}scripts=scripts.filter(s=>s.id!==id);if(id===cid){if(scripts.length)selScript(scripts[0].id);else{cid=null;workspace?.clear();$('sname').value=''}}saveAll();rScripts();updFt()}
+function updRun(){const r=rts.has(cid);$('rbtn').style.display=r?'none':'';$('sbtn').style.display=r?'':'none';$('rba').innerHTML=r?'<div class="rb"><div class="dot"></div>running</div>':''}
+function updFt(){$('fr').textContent=rts.size;let su=0,sc=0;rts.forEach(rt=>{su+=rt.subCnt;sc+=rt.schCnt});$('fu').textContent=su;$('fs').textContent=sc}
+function updCode(){if(!workspace)return;try{$('cc').textContent=jsGen.workspaceToCode(workspace)||'// Build automations with blocks above'}catch(e){$('cc').textContent='// Error: '+e.message}}
+
+// ============= RUNTIME ENGINE =============
+function eMatch(p,eid){if(p==='*')return true;if(p instanceof RegExp)return p.test(eid);if(p===eid)return true;if(typeof p==='string'&&(p.includes('*')||p.includes('?')))return new RegExp('^'+p.replace(/[.+^${}()|[\]\\]/g,'\\$&').replace(/\\\*/g,'.*').replace(/\\\?/g,'.')+'$').test(eid);return false}
+function pCF(f,mn,mx){if(f==='*')return null;const s=new Set();for(const p of f.split(',')){if(p.includes('/')){const[r,st]=p.split('/');let a=mn,b=mx;if(r!=='*'){if(r.includes('-'))[a,b]=r.split('-').map(Number);else{a=+r;b=mx}}for(let i=a;i<=b;i+=+st)s.add(i)}else if(p.includes('-')){const[a,b]=p.split('-').map(Number);for(let i=a;i<=b;i++)s.add(i)}else s.add(+p)}return s}
+function pCron(s){const p=s.trim().split(/\s+/);if(p.length!==5)throw new Error('5 cron fields needed');return{mi:pCF(p[0],0,59),hr:pCF(p[1],0,23),d:pCF(p[2],1,31),mo:pCF(p[3],1,12),dw:pCF(p[4],0,6)}}
+function cMatch(c,d){return[[c.mi,d.getMinutes()],[c.hr,d.getHours()],[c.d,d.getDate()],[c.mo,d.getMonth()+1],[c.dw,d.getDay()]].every(([s,v])=>s===null||s.has(v))}
+
+// Sun calc (simplified)
+function sunTimes(lat,lng,date){const r=Math.PI/180,J2k=2451545,dMs=864e5;const tJ=d=>d.valueOf()/dMs-0.5+2440588,fJ=j=>new Date((j+0.5-2440588)*dMs),tD=d=>tJ(d)-J2k;
+const sMA=d=>r*(357.5291+0.98560028*d),eL=M=>{const C=r*(1.9148*Math.sin(M)+0.02*Math.sin(2*M)+0.0003*Math.sin(3*M));return M+C+r*282.9372+Math.PI};
+const dec=(l)=>Math.asin(Math.sin(r*23.4397)*Math.sin(l));
+const lw=r*-lng,phi=r*lat,d=tD(date||new Date()),n=Math.round(d-0.0009-lw/(2*Math.PI)),ds=0.0009+lw/(2*Math.PI)+n;
+const M=sMA(ds),L=eL(M),dc=dec(L),Jn=J2k+ds+0.0053*Math.sin(M)-0.0069*Math.sin(2*L);
+const hA=(h)=>Math.acos((Math.sin(h)-Math.sin(phi)*Math.sin(dc))/(Math.cos(phi)*Math.cos(dc)));
+const res={noon:fJ(Jn)};
+try{const w=hA(r*-0.833);const Js=J2k+(0.0009+(w+lw)/(2*Math.PI)+n)+0.0053*Math.sin(M)-0.0069*Math.sin(2*L);res.sunset=fJ(Js);res.sunrise=fJ(Jn-(Js-Jn))}catch{}
+try{const w=hA(r*-6);const Js=J2k+(0.0009+(w+lw)/(2*Math.PI)+n)+0.0053*Math.sin(M)-0.0069*Math.sin(2*L);res.dusk=fJ(Js);res.dawn=fJ(Jn-(Js-Jn))}catch{}
+return res}
+
+function mapSet(eid,val){if(!wsC)throw new Error('Not connected');const dom=eid.split('.')[0];
+const tog=['light','switch','fan','input_boolean','automation','script','siren','humidifier'];
+if(val&&typeof val==='object'&&val.service)return wsS({type:'call_service',domain:dom,service:val.service,service_data:val.data||{},target:{entity_id:eid}});
+if(tog.includes(dom)){const on=val===true||val==='on'||val===1;return wsS({type:'call_service',domain:dom,service:on?'turn_on':'turn_off',service_data:{},target:{entity_id:eid}})}
+if(dom==='cover')return wsS({type:'call_service',domain:'cover',service:val===true||val==='open'?'open_cover':'close_cover',service_data:{},target:{entity_id:eid}});
+if(dom==='lock')return wsS({type:'call_service',domain:'lock',service:val===true||val==='lock'?'lock':'unlock',service_data:{},target:{entity_id:eid}});
+if(dom==='input_number'||dom==='number')return wsS({type:'call_service',domain:dom,service:'set_value',service_data:{value:+val},target:{entity_id:eid}});
+if(dom==='input_text'||dom==='text')return wsS({type:'call_service',domain:dom,service:'set_value',service_data:{value:''+val},target:{entity_id:eid}});
+if(dom==='input_select'||dom==='select')return wsS({type:'call_service',domain:dom,service:'select_option',service_data:{option:''+val},target:{entity_id:eid}});
+if(dom==='climate'){if(typeof val==='number')return wsS({type:'call_service',domain:'climate',service:'set_temperature',service_data:{temperature:val},target:{entity_id:eid}});return wsS({type:'call_service',domain:'climate',service:'set_hvac_mode',service_data:{hvac_mode:''+val},target:{entity_id:eid}})}
+const on=val===true||val==='on'||val===1;return wsS({type:'call_service',domain:dom,service:on?'turn_on':'turn_off',service_data:{},target:{entity_id:eid}})}
+
+function createRT(sid,sname){
+  const subs=[],tms=new Set(),ivs=new Set(),crons=[],stops=[],vStates=new Map(),namedIv=new Map();
+  let dead=false,nid=1;
+  const safe=(fn,...a)=>{if(dead)return;try{fn(...a)}catch(e){addLog(sname,'error','Uncaught: '+(e.message||e))}};
+  const api={
+    on(p,cb){const id=nid++;subs.push({id,p,cb});return id},subscribe(...a){return api.on(...a)},
+    unsubscribe(id){const i=subs.findIndex(s=>s.id===id);if(i>=0)subs.splice(i,1)},
+    getState(id){const vs=vStates.get(id);if(vs)return{...vs};const e=ents.get(id);if(!e)return null;return{state:e.state,val:e.state,attributes:e.attributes||{},lastChanged:e.last_changed,ts:new Date(e.last_updated).getTime()}},
+    existsState(id){return vStates.has(id)||ents.has(id)},
+    getAttr(id,attr){const s=api.getState(id);return s?s.attributes[attr]:null},
+    setState(id,v){if(vStates.has(id)){const o=vStates.get(id),os=o.state,ns=typeof v==='object'&&v?.state!==undefined?String(v.state):String(v);vStates.set(id,{...o,state:ns,val:ns,ts:Date.now()});for(const s of subs){if(!eMatch(s.p,id))continue;if(ns===os)continue;safe(s.cb,{id,entityId:id,state:ns,oldState:os,val:ns,ts:Date.now()})}return}return mapSet(id,v)},
+    setStateDelayed(id,v,ms,clear){if(clear!==false)api.clearStateDelayed(id);const t=setTimeout(()=>{tms.delete(t);safe(()=>api.setState(id,v))},ms);tms.add(t);return t},
+    clearStateDelayed(id){},
+    createState(name,init,common){const fid=name.includes('.')?name:'virtual.'+name;vStates.set(fid,{state:String(init??''),val:init,ts:Date.now(),attributes:common||{}});return fid},
+    deleteState(name){const fid=name.includes('.')?name:'virtual.'+name;return vStates.delete(fid)},
+    callService(dom,svc,data,target){return wsS({type:'call_service',domain:dom,service:svc,service_data:data||{},target:target||{}})},
+    schedule(cron,cb){const parsed=pCron(cron);const id=nid++;crons.push({id,parsed,cb});return id},
+    clearSchedule(id){const i=crons.findIndex(c=>c.id===id);if(i>=0)crons.splice(i,1)},
+    setTimeout(fn,ms){const t=setTimeout(()=>{tms.delete(t);safe(fn)},ms);tms.add(t);return t},
+    setInterval(fn,ms,name){const t=setInterval(()=>safe(fn),ms);ivs.add(t);if(name)namedIv.set(name,t);return t},
+    clearTimeout(t){clearTimeout(t);tms.delete(t)},
+    clearInterval(t){if(typeof t==='string'){const v=namedIv.get(t);if(v){clearInterval(v);ivs.delete(v);namedIv.delete(t)}}else{clearInterval(t);ivs.delete(t)}},
+    log:Object.assign(m=>addLog(sname,'info',''+m),{info:m=>addLog(sname,'info',''+m),warn:m=>addLog(sname,'warn',''+m),error:m=>addLog(sname,'error',''+m),debug:m=>addLog(sname,'debug',''+m)}),
+    console:{log:m=>addLog(sname,'info',''+m),warn:m=>addLog(sname,'warn',''+m),error:m=>addLog(sname,'error',''+m)},
+    onStop(cb){stops.push(cb)},wait(ms){return new Promise(r=>{const t=setTimeout(()=>{tms.delete(t);r()},ms);tms.add(t)})},
+    formatDate(d,f){const dt=d instanceof Date?d:new Date(d);const pad=(n)=>String(n).padStart(2,'0');return(f||'YYYY-MM-DD hh:mm:ss').replace('YYYY',dt.getFullYear()).replace('MM',pad(dt.getMonth()+1)).replace('DD',pad(dt.getDate())).replace('hh',pad(dt.getHours())).replace('mm',pad(dt.getMinutes())).replace('ss',pad(dt.getSeconds()))},
+    getAstroDate(ev){const t=sunTimes(sets.lat,sets.lng,new Date());return t[ev]||null},
+    isAstroDay(){const t=sunTimes(sets.lat,sets.lng,new Date());if(!t.sunrise||!t.sunset)return true;const now=Date.now();return now>=t.sunrise.getTime()&&now<=t.sunset.getTime()},
+    toNumber(v){return Number(v)},toBoolean(v){return!!v&&v!=='false'&&v!=='0'&&v!=='off'},
+    typeOf(v){if(v===null)return'null';if(Array.isArray(v))return'array';return typeof v},
+    parseJSON(s){try{return JSON.parse(s)}catch{return null}},toJSON(o){return JSON.stringify(o)},
+    httpGet(url){return fetch(url).then(r=>r.text()).catch(e=>{api.log.error('httpGet failed: '+e.message);return null})},
+    sendNotification(msg,title){return api.callService('persistent_notification','create',{message:msg,title:title||'Automation'})},
+    sendToMobile(svc,msg,title,data){return api.callService('notify',svc||'notify',{message:msg,title:title||'HA Blocks',...(data||{})})},
+  };
+  return{api,
+    onSC(ev){if(dead)return;const{entity_id:eid,new_state:ns,old_state:os}=ev.data||{};if(!eid)return;for(const s of subs){if(!eMatch(s.p,eid))continue;safe(s.cb,{id:eid,entityId:eid,state:ns?.state,oldState:os?.state,newState:ns,previousState:os,attributes:ns?.attributes,ts:Date.now()})}},
+    tickCron(d){if(dead)return;for(const c of crons)if(cMatch(c.parsed,d))safe(c.cb)},
+    destroy(){dead=true;stops.forEach(cb=>{try{cb()}catch{}});tms.forEach(t=>clearTimeout(t));ivs.forEach(t=>clearInterval(t));tms.clear();ivs.clear();subs.length=0;crons.length=0;stops.length=0},
+    get subCnt(){return subs.length},get schCnt(){return crons.length}};
+}
+
+function runScript(){if(!cid||!workspace)return;saveScript();const sc=scripts.find(s=>s.id===cid);if(!sc)return;if(rts.has(sc.id)){rts.get(sc.id).destroy();rts.delete(sc.id)}
+const code=jsGen.workspaceToCode(workspace),rt=createRT(sc.id,sc.name);
+try{const fn=new Function('on','subscribe','unsubscribe','getState','setState','existsState','getAttr','setStateDelayed','clearStateDelayed','createState','deleteState','callService','schedule','clearSchedule','setTimeout','setInterval','clearTimeout','clearInterval','log','console','onStop','wait','sleep','formatDate','getAstroDate','isAstroDay','toNumber','toBoolean','typeOf','parseJSON','toJSON','httpGet','sendNotification','sendToMobile',code);
+fn(rt.api.on,rt.api.subscribe,rt.api.unsubscribe,rt.api.getState,rt.api.setState,rt.api.existsState,rt.api.getAttr,rt.api.setStateDelayed,rt.api.clearStateDelayed,rt.api.createState,rt.api.deleteState,rt.api.callService,rt.api.schedule,rt.api.clearSchedule,rt.api.setTimeout,rt.api.setInterval,rt.api.clearTimeout,rt.api.clearInterval,rt.api.log,rt.api.console,rt.api.onStop,rt.api.wait,rt.api.wait,rt.api.formatDate,rt.api.getAstroDate,rt.api.isAstroDay,rt.api.toNumber,rt.api.toBoolean,rt.api.typeOf,rt.api.parseJSON,rt.api.toJSON,rt.api.httpGet,rt.api.sendNotification,rt.api.sendToMobile);
+rts.set(sc.id,rt);addLog(sc.name,'info','Script started')}catch(e){rt.destroy();addLog(sc.name,'error','Start failed: '+e.message)}updRun();rScripts();updFt()}
+function stopScript(){if(!cid)return;const rt=rts.get(cid);if(rt){rt.destroy();rts.delete(cid)}const sc=scripts.find(s=>s.id===cid);if(sc)addLog(sc.name,'info','Stopped');updRun();rScripts();updFt()}
+setInterval(()=>{const now=new Date();if(now.getSeconds()===0)rts.forEach(rt=>rt.tickCron(now));updFt()},1000);
+
+// ============= BLOCKLY BLOCKS =============
+function defBlocks(){
+const G=jsGen,O=Order;
+
+// ─── SYSTEM ───
+Blockly.Blocks['ha_debug']={init:function(){this.appendValueInput('M').appendField('📝 log').appendField(new Blockly.FieldDropdown([['info','info'],['warn','warn'],['error','error'],['debug','debug']]),'L');this.setColour('#a07de8');this.setPreviousStatement(true);this.setNextStatement(true);this.setInputsInline(true)}};
+G.forBlock['ha_debug']=function(b,g){return'log.'+b.getFieldValue('L')+'('+( g.valueToCode(b,'M',O.ATOMIC)||"''")+');\n'};
+
+Blockly.Blocks['ha_comment']={init:function(){this.appendDummyInput().appendField('💬').appendField(new Blockly.FieldTextInput('comment'),'C');this.setColour('#a07de8');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_comment']=function(b){return'// '+b.getFieldValue('C')+'\n'};
+
+Blockly.Blocks['ha_control']={init:function(){this.appendDummyInput().appendField('⚡ control').appendField(new Blockly.FieldTextInput('entity_id'),'E');this.appendValueInput('V').appendField('value');this.setColour('#5ec489');this.setPreviousStatement(true);this.setNextStatement(true);this.setInputsInline(true)}};
+G.forBlock['ha_control']=function(b,g){return"setState('"+b.getFieldValue('E')+"', "+(g.valueToCode(b,'V',O.ATOMIC)||'true')+');\n'};
+
+Blockly.Blocks['ha_control_onoff']={init:function(){this.appendDummyInput().appendField('⚡ set').appendField(new Blockly.FieldTextInput('entity_id'),'E').appendField('to').appendField(new Blockly.FieldDropdown([['on','true'],['off','false']]),'V');this.setColour('#5ec489');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_control_onoff']=function(b){return"setState('"+b.getFieldValue('E')+"', "+b.getFieldValue('V')+');\n'};
+
+Blockly.Blocks['ha_control_delay']={init:function(){this.appendDummyInput().appendField('⏳ set').appendField(new Blockly.FieldTextInput('entity_id'),'E').appendField('to').appendField(new Blockly.FieldDropdown([['on','true'],['off','false']]),'V').appendField('after').appendField(new Blockly.FieldNumber(60,1),'D').appendField('sec');this.setColour('#5ec489');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_control_delay']=function(b){return"setStateDelayed('"+b.getFieldValue('E')+"', "+b.getFieldValue('V')+', '+(b.getFieldValue('D')*1000)+');\n'};
+
+Blockly.Blocks['ha_toggle']={init:function(){this.appendDummyInput().appendField('🔄 toggle').appendField(new Blockly.FieldTextInput('entity_id'),'E');this.setColour('#5ec489');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_toggle']=function(b){const e=b.getFieldValue('E'),d=e.split('.')[0]||'homeassistant';return"callService('"+d+"', 'toggle', {}, { entity_id: '"+e+"' });\n"};
+
+Blockly.Blocks['ha_create_state']={init:function(){this.appendDummyInput().appendField('📦 create state').appendField(new Blockly.FieldTextInput('myvar'),'N');this.appendValueInput('V').appendField('=');this.setColour('#5ec489');this.setPreviousStatement(true);this.setNextStatement(true);this.setInputsInline(true)}};
+G.forBlock['ha_create_state']=function(b,g){return"createState('"+b.getFieldValue('N')+"', "+(g.valueToCode(b,'V',O.ATOMIC)||'null')+');\n'};
+
+Blockly.Blocks['ha_getstate']={init:function(){this.appendDummyInput().appendField('📖 state of').appendField(new Blockly.FieldTextInput('entity_id'),'E');this.setOutput(true,'String');this.setColour('#5da4e8')}};
+G.forBlock['ha_getstate']=function(b){const e=b.getFieldValue('E');return["(getState('"+e+"') ? getState('"+e+"').state : null)",O.FUNCTION_CALL]};
+
+Blockly.Blocks['ha_getattr']={init:function(){this.appendDummyInput().appendField('📖 attr').appendField(new Blockly.FieldTextInput('brightness'),'A').appendField('of').appendField(new Blockly.FieldTextInput('entity_id'),'E');this.setOutput(true);this.setColour('#5da4e8')}};
+G.forBlock['ha_getattr']=function(b){return["getAttr('"+b.getFieldValue('E')+"', '"+b.getFieldValue('A')+"')",O.FUNCTION_CALL]};
+
+Blockly.Blocks['ha_is']={init:function(){this.appendDummyInput().appendField('❓').appendField(new Blockly.FieldTextInput('entity_id'),'E').appendField('is').appendField(new Blockly.FieldTextInput('on'),'V');this.setOutput(true,'Boolean');this.setColour('#5da4e8');this.setInputsInline(true)}};
+G.forBlock['ha_is']=function(b){return["(getState('"+b.getFieldValue('E')+"') && String(getState('"+b.getFieldValue('E')+"').state) === '"+b.getFieldValue('V')+"')",O.LOGICAL_AND]};
+
+Blockly.Blocks['ha_exists']={init:function(){this.appendDummyInput().appendField('❓ exists').appendField(new Blockly.FieldTextInput('entity_id'),'E');this.setOutput(true,'Boolean');this.setColour('#5da4e8')}};
+G.forBlock['ha_exists']=function(b){return["existsState('"+b.getFieldValue('E')+"')",O.FUNCTION_CALL]};
+
+// ─── ACTIONS ───
+Blockly.Blocks['ha_service']={init:function(){this.appendDummyInput().appendField('🔧 service').appendField(new Blockly.FieldTextInput('light'),'D').appendField('.').appendField(new Blockly.FieldTextInput('turn_on'),'S');this.appendDummyInput().appendField('entity').appendField(new Blockly.FieldTextInput('light.room'),'E');this.appendDummyInput().appendField('data JSON').appendField(new Blockly.FieldTextInput('{}'),'DATA');this.setColour('#5ec489');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_service']=function(b){return"callService('"+b.getFieldValue('D')+"', '"+b.getFieldValue('S')+"', "+(b.getFieldValue('DATA')||'{}')+", { entity_id: '"+b.getFieldValue('E')+"' });\n"};
+
+Blockly.Blocks['ha_http']={init:function(){this.appendDummyInput().appendField('🌐 HTTP GET').appendField(new Blockly.FieldTextInput('https://api.example.com'),'URL');this.setOutput(true);this.setColour('#e85d5d')}};
+G.forBlock['ha_http']=function(b){return["(await httpGet('"+b.getFieldValue('URL')+"'))",O.AWAIT]};
+
+// ─── SEND TO ───
+Blockly.Blocks['ha_notify']={init:function(){this.appendValueInput('M').appendField('📢 notify');this.appendDummyInput().appendField('title').appendField(new Blockly.FieldTextInput('Automation'),'T');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_notify']=function(b,g){return'sendNotification('+(g.valueToCode(b,'M',O.ATOMIC)||"''")+", '"+b.getFieldValue('T')+"');\n"};
+
+Blockly.Blocks['ha_mobile']={init:function(){this.appendValueInput('M').appendField('📱 mobile notify');this.appendDummyInput().appendField('service').appendField(new Blockly.FieldTextInput('mobile_app_phone'),'S');this.appendDummyInput().appendField('title').appendField(new Blockly.FieldTextInput('HA Blocks'),'T');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_mobile']=function(b,g){return"sendToMobile('"+b.getFieldValue('S')+"', "+(g.valueToCode(b,'M',O.ATOMIC)||"''")+", '"+b.getFieldValue('T')+"');\n"};
+
+// ─── TRIGGER ───
+Blockly.Blocks['ha_on_change']={init:function(){this.appendDummyInput().appendField('🔔 when').appendField(new Blockly.FieldTextInput('entity_id'),'E').appendField('changes');this.appendStatementInput('DO').appendField('do');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true);this.setTooltip('Wildcards: light.*, sensor.temp*')}};
+G.forBlock['ha_on_change']=function(b,g){return"on('"+b.getFieldValue('E')+"', function(event) {\n"+g.statementToCode(b,'DO')+"});\n"};
+
+Blockly.Blocks['ha_on_value']={init:function(){this.appendDummyInput().appendField('🔔 when').appendField(new Blockly.FieldTextInput('entity_id'),'E').appendField('becomes').appendField(new Blockly.FieldTextInput('on'),'V');this.appendStatementInput('DO').appendField('do');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_on_value']=function(b,g){return"on('"+b.getFieldValue('E')+"', function(event) {\n  if (String(event.state) === '"+b.getFieldValue('V')+"') {\n"+g.statementToCode(b,'DO')+"  }\n});\n"};
+
+Blockly.Blocks['ha_on_multi']={init:function(){this.appendDummyInput().appendField('🔔 when any of').appendField(new Blockly.FieldTextInput('entity1, entity2'),'E').appendField('changes');this.appendStatementInput('DO').appendField('do');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true);this.setTooltip('Comma-separated entity IDs')}};
+G.forBlock['ha_on_multi']=function(b,g){const ids=b.getFieldValue('E').split(',').map(s=>s.trim());let code='';ids.forEach(id=>{code+="on('"+id+"', function(event) {\n"+g.statementToCode(b,'DO')+"});\n"});return code};
+
+Blockly.Blocks['ha_event']={init:function(){this.appendDummyInput().appendField('📨 trigger').appendField(new Blockly.FieldDropdown([['new state','state'],['old state','oldState'],['entity id','entityId'],['new value (num)','Number(event.state)'],['attributes','JSON.stringify(event.attributes)']]),'P');this.setOutput(true);this.setColour('#e8952f')}};
+G.forBlock['ha_event']=function(b){const p=b.getFieldValue('P');return[p.startsWith('event.')||p.startsWith('Number')||p.startsWith('JSON')?p:'event.'+p,O.MEMBER]};
+
+Blockly.Blocks['ha_cron']={init:function(){this.appendDummyInput().appendField('⏰ cron').appendField(new Blockly.FieldTextInput('0 * * * *'),'C');this.appendStatementInput('DO').appendField('do');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true);this.setTooltip('min hour day month weekday')}};
+G.forBlock['ha_cron']=function(b,g){return"schedule('"+b.getFieldValue('C')+"', function() {\n"+g.statementToCode(b,'DO')+"});\n"};
+
+Blockly.Blocks['ha_every']={init:function(){this.appendDummyInput().appendField('🔁 every').appendField(new Blockly.FieldNumber(60,1),'S').appendField('seconds');this.appendStatementInput('DO').appendField('do');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_every']=function(b,g){return"setInterval(function() {\n"+g.statementToCode(b,'DO')+"}, "+(b.getFieldValue('S')*1000)+");\n"};
+
+Blockly.Blocks['ha_astro_trigger']={init:function(){this.appendDummyInput().appendField('🌅 at').appendField(new Blockly.FieldDropdown([['sunrise','sunrise'],['sunset','sunset'],['dawn','dawn'],['dusk','dusk'],['noon','noon']]),'EV').appendField('shift').appendField(new Blockly.FieldNumber(0),'SH').appendField('min');this.appendStatementInput('DO').appendField('do');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true);this.setTooltip('Trigger at astro event. Shift in minutes (can be negative)')}};
+G.forBlock['ha_astro_trigger']=function(b,g){const ev=b.getFieldValue('EV'),sh=b.getFieldValue('SH');return"(function() {\n  var aDate = getAstroDate('"+ev+"');\n  if (aDate) {\n    var ms = aDate.getTime() - Date.now() + ("+(sh*60000)+");\n    if (ms > 0) setTimeout(function() {\n"+g.statementToCode(b,'DO')+"    }, ms);\n  }\n})();\n"};
+
+Blockly.Blocks['ha_onstop']={init:function(){this.appendDummyInput().appendField('🛑 on script stop');this.appendStatementInput('DO').appendField('do');this.setColour('#a07de8');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_onstop']=function(b,g){return"onStop(function() {\n"+g.statementToCode(b,'DO')+"});\n"};
+
+// ─── TIMEOUTS ───
+Blockly.Blocks['ha_wait']={init:function(){this.appendDummyInput().appendField('⏸ wait').appendField(new Blockly.FieldNumber(5,0.1),'S').appendField('seconds');this.setColour('#e85d5d');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_wait']=function(b){return'await wait('+(b.getFieldValue('S')*1000)+');\n'};
+
+Blockly.Blocks['ha_after']={init:function(){this.appendDummyInput().appendField('⏰ after').appendField(new Blockly.FieldNumber(10,1),'S').appendField('seconds');this.appendStatementInput('DO').appendField('do');this.setColour('#e85d5d');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_after']=function(b,g){return"setTimeout(function() {\n"+g.statementToCode(b,'DO')+"}, "+(b.getFieldValue('S')*1000)+");\n"};
+
+Blockly.Blocks['ha_named_interval']={init:function(){this.appendDummyInput().appendField('🔁 interval').appendField(new Blockly.FieldTextInput('myInterval'),'N').appendField('every').appendField(new Blockly.FieldNumber(30,1),'S').appendField('sec');this.appendStatementInput('DO').appendField('do');this.setColour('#e85d5d');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_named_interval']=function(b,g){return"setInterval(function() {\n"+g.statementToCode(b,'DO')+"}, "+(b.getFieldValue('S')*1000)+", '"+b.getFieldValue('N')+"');\n"};
+
+Blockly.Blocks['ha_stop_interval']={init:function(){this.appendDummyInput().appendField('⏹ stop interval').appendField(new Blockly.FieldTextInput('myInterval'),'N');this.setColour('#e85d5d');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_stop_interval']=function(b){return"clearInterval('"+b.getFieldValue('N')+"');\n"};
+
+// ─── DATE/TIME ───
+Blockly.Blocks['ha_get_time']={init:function(){this.appendDummyInput().appendField('🕐 current time as').appendField(new Blockly.FieldDropdown([['hh:mm','hh:mm'],['hh:mm:ss','hh:mm:ss'],['YYYY-MM-DD','YYYY-MM-DD'],['YYYY-MM-DD hh:mm:ss','YYYY-MM-DD hh:mm:ss'],['DD.MM.YYYY','DD.MM.YYYY'],['timestamp','timestamp']]),'F');this.setOutput(true,'String');this.setColour('#5b80a5')}};
+G.forBlock['ha_get_time']=function(b){const f=b.getFieldValue('F');if(f==='timestamp')return['Date.now()',O.FUNCTION_CALL];return["formatDate(new Date(), '"+f+"')",O.FUNCTION_CALL]};
+
+Blockly.Blocks['ha_astro_date']={init:function(){this.appendDummyInput().appendField('🌅 time of').appendField(new Blockly.FieldDropdown([['sunrise','sunrise'],['sunset','sunset'],['dawn','dawn'],['dusk','dusk'],['noon','noon']]),'EV').appendField('today');this.setOutput(true);this.setColour('#5b80a5')}};
+G.forBlock['ha_astro_date']=function(b){return["getAstroDate('"+b.getFieldValue('EV')+"')",O.FUNCTION_CALL]};
+
+Blockly.Blocks['ha_is_astro_day']={init:function(){this.appendDummyInput().appendField('☀️ is daytime');this.setOutput(true,'Boolean');this.setColour('#5b80a5')}};
+G.forBlock['ha_is_astro_day']=function(){return['isAstroDay()',O.FUNCTION_CALL]};
+
+Blockly.Blocks['ha_time_compare']={init:function(){this.appendDummyInput().appendField('🕐 current time').appendField(new Blockly.FieldDropdown([['>=','>='],['<=','<='],['==','==='],['between','between']]),'OP').appendField(new Blockly.FieldTextInput('08:00'),'T1');this.appendDummyInput().appendField('and').appendField(new Blockly.FieldTextInput('22:00'),'T2');this.setOutput(true,'Boolean');this.setColour('#5b80a5');this.setTooltip('Compare current time. Use HH:MM format')}};
+G.forBlock['ha_time_compare']=function(b){const op=b.getFieldValue('OP'),t1=b.getFieldValue('T1'),t2=b.getFieldValue('T2');
+if(op==='between')return["(function(){var n=new Date(),c=n.getHours()*60+n.getMinutes(),a='"+t1+"'.split(':'),b='"+t2+"'.split(':');var s=+a[0]*60+(+a[1]),e=+b[0]*60+(+b[1]);return s<=e?c>=s&&c<=e:c>=s||c<=e})()",O.FUNCTION_CALL];
+return["(function(){var n=new Date(),c=n.getHours()*60+n.getMinutes(),p='"+t1+"'.split(':');return c"+op+"(+p[0]*60+(+p[1]))})()",O.FUNCTION_CALL]};
+
+// ─── CONVERT ───
+Blockly.Blocks['ha_to_number']={init:function(){this.appendValueInput('V').appendField('🔢 to number');this.setOutput(true,'Number');this.setColour('#995ba5')}};
+G.forBlock['ha_to_number']=function(b,g){return['toNumber('+( g.valueToCode(b,'V',O.ATOMIC)||'0')+')',O.FUNCTION_CALL]};
+
+Blockly.Blocks['ha_to_boolean']={init:function(){this.appendValueInput('V').appendField('✅ to boolean');this.setOutput(true,'Boolean');this.setColour('#995ba5')}};
+G.forBlock['ha_to_boolean']=function(b,g){return['toBoolean('+(g.valueToCode(b,'V',O.ATOMIC)||'false')+')',O.FUNCTION_CALL]};
+
+Blockly.Blocks['ha_typeof']={init:function(){this.appendValueInput('V').appendField('🏷 type of');this.setOutput(true,'String');this.setColour('#995ba5')}};
+G.forBlock['ha_typeof']=function(b,g){return['typeOf('+(g.valueToCode(b,'V',O.ATOMIC)||'null')+')',O.FUNCTION_CALL]};
+
+Blockly.Blocks['ha_json_parse']={init:function(){this.appendValueInput('V').appendField('📥 JSON parse');this.setOutput(true);this.setColour('#995ba5')}};
+G.forBlock['ha_json_parse']=function(b,g){return['parseJSON('+(g.valueToCode(b,'V',O.ATOMIC)||"'{}'")+') ',O.FUNCTION_CALL]};
+
+Blockly.Blocks['ha_json_str']={init:function(){this.appendValueInput('V').appendField('📤 to JSON');this.setOutput(true,'String');this.setColour('#995ba5')}};
+G.forBlock['ha_json_str']=function(b,g){return['toJSON('+(g.valueToCode(b,'V',O.ATOMIC)||'{}')+') ',O.FUNCTION_CALL]};
+
+Blockly.Blocks['ha_format_date']={init:function(){this.appendDummyInput().appendField('📅 format date').appendField(new Blockly.FieldDropdown([['YYYY-MM-DD hh:mm:ss','YYYY-MM-DD hh:mm:ss'],['DD.MM.YYYY','DD.MM.YYYY'],['hh:mm','hh:mm'],['YYYY-MM-DD','YYYY-MM-DD']]),'F');this.setOutput(true,'String');this.setColour('#995ba5')}};
+G.forBlock['ha_format_date']=function(b){return["formatDate(new Date(), '"+b.getFieldValue('F')+"')",O.FUNCTION_CALL]};
+
+// Override text_print
+G.forBlock['text_print']=function(b,g){return'log.info('+(g.valueToCode(b,'TEXT',O.NONE)||"''")+');\n'};
+}
+
+// ─── TOOLBOX ───
+var toolbox={kind:'categoryToolbox',contents:[
+{kind:'category',name:'🔧 System',colour:'#a07de8',contents:[
+  {kind:'block',type:'ha_debug'},{kind:'block',type:'ha_comment',fields:{C:'my comment'}},
+  {kind:'block',type:'ha_control',fields:{E:'light.room'}},{kind:'block',type:'ha_control_onoff',fields:{E:'light.room'}},
+  {kind:'block',type:'ha_control_delay',fields:{E:'light.hallway',D:300}},{kind:'block',type:'ha_toggle',fields:{E:'light.room'}},
+  {kind:'block',type:'ha_create_state',fields:{N:'myVariable'}},{kind:'block',type:'ha_getstate',fields:{E:'sensor.temp'}},
+  {kind:'block',type:'ha_getattr',fields:{E:'light.desk',A:'brightness'}},{kind:'block',type:'ha_is',fields:{E:'binary_sensor.door',V:'on'}},{kind:'block',type:'ha_exists',fields:{E:'sensor.temp'}}]},
+{kind:'category',name:'⚡ Actions',colour:'#5ec489',contents:[
+  {kind:'block',type:'ha_service',fields:{D:'light',S:'turn_on',E:'light.room',DATA:'{"brightness":200}'}},
+  {kind:'block',type:'ha_http',fields:{URL:'https://api.example.com/data'}}]},
+{kind:'category',name:'📨 Send To',colour:'#e8952f',contents:[
+  {kind:'block',type:'ha_notify',fields:{T:'Automation'}},{kind:'block',type:'ha_mobile',fields:{S:'mobile_app_phone',T:'HA Blocks'}}]},
+{kind:'category',name:'🔔 Trigger',colour:'#e8952f',contents:[
+  {kind:'block',type:'ha_on_change',fields:{E:'binary_sensor.door'}},{kind:'block',type:'ha_on_value',fields:{E:'binary_sensor.motion',V:'on'}},
+  {kind:'block',type:'ha_on_multi',fields:{E:'sensor.temp, sensor.humidity'}},{kind:'block',type:'ha_event'},
+  {kind:'block',type:'ha_cron',fields:{C:'0 8 * * *'}},{kind:'block',type:'ha_every',fields:{S:60}},
+  {kind:'block',type:'ha_astro_trigger',fields:{EV:'sunset',SH:0}},{kind:'block',type:'ha_onstop'}]},
+{kind:'category',name:'⏱ Timeouts',colour:'#e85d5d',contents:[
+  {kind:'block',type:'ha_wait',fields:{S:5}},{kind:'block',type:'ha_after',fields:{S:10}},
+  {kind:'block',type:'ha_named_interval',fields:{N:'myInterval',S:30}},{kind:'block',type:'ha_stop_interval',fields:{N:'myInterval'}}]},
+{kind:'category',name:'🕐 Date/Time',colour:'#5b80a5',contents:[
+  {kind:'block',type:'ha_get_time'},{kind:'block',type:'ha_time_compare',fields:{T1:'08:00',T2:'22:00'}},
+  {kind:'block',type:'ha_astro_date'},{kind:'block',type:'ha_is_astro_day'},{kind:'block',type:'ha_format_date'}]},
+{kind:'category',name:'🔄 Convert',colour:'#995ba5',contents:[
+  {kind:'block',type:'ha_to_number'},{kind:'block',type:'ha_to_boolean'},{kind:'block',type:'ha_typeof'},
+  {kind:'block',type:'ha_json_parse'},{kind:'block',type:'ha_json_str'},{kind:'block',type:'ha_format_date'}]},
+{kind:'sep'},
+{kind:'category',name:'Logic',colour:'#5b80a5',contents:[
+  {kind:'block',type:'controls_if'},{kind:'block',type:'controls_ifelse'},{kind:'block',type:'logic_compare'},
+  {kind:'block',type:'logic_operation'},{kind:'block',type:'logic_negate'},{kind:'block',type:'logic_boolean'},{kind:'block',type:'logic_null'}]},
+{kind:'category',name:'Loops',colour:'#5ba55b',contents:[
+  {kind:'block',type:'controls_repeat_ext',inputs:{TIMES:{shadow:{type:'math_number',fields:{NUM:10}}}}},
+  {kind:'block',type:'controls_whileUntil'},
+  {kind:'block',type:'controls_for',inputs:{FROM:{shadow:{type:'math_number',fields:{NUM:1}}},TO:{shadow:{type:'math_number',fields:{NUM:10}}},BY:{shadow:{type:'math_number',fields:{NUM:1}}}}},
+  {kind:'block',type:'controls_forEach'}]},
+{kind:'category',name:'Math',colour:'#5b67a5',contents:[
+  {kind:'block',type:'math_number',fields:{NUM:0}},
+  {kind:'block',type:'math_arithmetic',inputs:{A:{shadow:{type:'math_number',fields:{NUM:1}}},B:{shadow:{type:'math_number',fields:{NUM:1}}}}},
+  {kind:'block',type:'math_single',inputs:{NUM:{shadow:{type:'math_number',fields:{NUM:9}}}}},
+  {kind:'block',type:'math_trig',inputs:{NUM:{shadow:{type:'math_number',fields:{NUM:45}}}}},
+  {kind:'block',type:'math_constant'},{kind:'block',type:'math_number_property',inputs:{NUMBER_TO_CHECK:{shadow:{type:'math_number',fields:{NUM:0}}}}},
+  {kind:'block',type:'math_round',inputs:{NUM:{shadow:{type:'math_number',fields:{NUM:3.1}}}}},
+  {kind:'block',type:'math_modulo',inputs:{DIVIDEND:{shadow:{type:'math_number',fields:{NUM:64}}},DIVISOR:{shadow:{type:'math_number',fields:{NUM:10}}}}},
+  {kind:'block',type:'math_constrain',inputs:{VALUE:{shadow:{type:'math_number',fields:{NUM:50}}},LOW:{shadow:{type:'math_number',fields:{NUM:1}}},HIGH:{shadow:{type:'math_number',fields:{NUM:100}}}}},
+  {kind:'block',type:'math_random_int',inputs:{FROM:{shadow:{type:'math_number',fields:{NUM:1}}},TO:{shadow:{type:'math_number',fields:{NUM:100}}}}}]},
+{kind:'category',name:'Text',colour:'#5ba58c',contents:[
+  {kind:'block',type:'text',fields:{TEXT:'hello'}},{kind:'block',type:'text_join'},{kind:'block',type:'text_append'},
+  {kind:'block',type:'text_length'},{kind:'block',type:'text_isEmpty'},{kind:'block',type:'text_indexOf'},
+  {kind:'block',type:'text_charAt'},{kind:'block',type:'text_changeCase'},{kind:'block',type:'text_trim'},{kind:'block',type:'text_print'}]},
+{kind:'category',name:'Lists',colour:'#745ba5',contents:[
+  {kind:'block',type:'lists_create_empty'},{kind:'block',type:'lists_create_with'},{kind:'block',type:'lists_repeat'},
+  {kind:'block',type:'lists_length'},{kind:'block',type:'lists_isEmpty'},{kind:'block',type:'lists_indexOf'},
+  {kind:'block',type:'lists_getIndex'},{kind:'block',type:'lists_setIndex'}]},
+{kind:'category',name:'Colour',colour:'#a5745b',contents:[
+  {kind:'block',type:'colour_picker'},{kind:'block',type:'colour_random'},{kind:'block',type:'colour_rgb'},{kind:'block',type:'colour_blend'}]},
+{kind:'category',name:'Variables',colour:'#a55b80',custom:'VARIABLE'},
+{kind:'category',name:'Functions',colour:'#995ba5',custom:'PROCEDURE'}]};
+
+// ─── INIT ───
+async function init(){
+  const sv=await S.g('ha-url',''),st=await S.g('ha-token',''),ss=await S.g('hb-scripts',null),se=await S.g('ha-sets',null);
+  if(sv)$('ha-url').value=sv;if(st)$('ha-token').value=st;if(se)sets=se;
+  defBlocks();
+  workspace=Blockly.inject('bd',{toolbox,theme:Blockly.Theme.defineTheme('hab',{base:Blockly.Themes.Classic,componentStyles:{workspaceBackgroundColour:'#151920',toolboxBackgroundColour:'#0e1015',toolboxForegroundColour:'#e2dfd8',flyoutBackgroundColour:'#1c2230',flyoutForegroundColour:'#e2dfd8',flyoutOpacity:0.97,scrollbarColour:'#232a38',scrollbarOpacity:0.8,insertionMarkerColour:'#e8952f',cursorColour:'#e8952f'},fontStyle:{family:'DM Mono, monospace',weight:'500',size:11},startHats:true}),
+    renderer:'zelos',grid:{spacing:28,length:2,colour:'#232a3830',snap:true},zoom:{controls:true,wheel:true,startScale:0.92,maxScale:2,minScale:0.3,scaleSpeed:1.1},trashcan:true,move:{scrollbars:true,drag:true,wheel:true},sounds:false,media:'https://cdnjs.cloudflare.com/ajax/libs/blockly/12.3.1/media/'});
+  workspace.addChangeListener(function(){updCode();$('udot').style.display=''});
+  if(ss&&ss.length)scripts=ss;else scripts=[{id:'s_seed',name:'example',st:null}];
+  rScripts();if(scripts.length)selScript(scripts[0].id);
+  document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveScript()}});
+  new ResizeObserver(function(){Blockly.svgResize(workspace)}).observe($('bd'));
+  // Auto-connect: add-on mode uses supervisor token, standalone uses saved creds
+  if(ADDON_MODE){
+    $('ha-url').value=location.origin;$('ha-token').value=ADDON_TOKEN;
+    $('ha-url').style.display='none';$('ha-token').parentElement.style.display='none';
+    setTimeout(()=>toggleConn(),300);
+  }else if(sets.auto&&sv&&st){setTimeout(()=>toggleConn(),500)}
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+---
+name: HA Blocks
+version: "1.0.0"
+slug: hablocks
+description: >-
+  Visual Blockly-based automation builder for Home Assistant.
+  Create automations using drag-and-drop blocks — no coding required.
+  Inspired by ioBroker's JavaScript/Blockly adapter.
+url: https://github.com/YOUR_USERNAME/ha-hablocks-addon/tree/main/hablocks
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+ingress: true
+ingress_port: 8099
+ingress_stream: false
+panel_icon: mdi:puzzle
+panel_title: HA Blocks
+homeassistant_api: true
+auth_api: true
+startup: application
+boot: auto
+init: false
+options:
+  log_level: info
+schema:
+  log_level: list(trace|debug|info|notice|warning|error|fatal)?
+image: "ghcr.io/your_username/ha-hablocks-addon-{arch}"
