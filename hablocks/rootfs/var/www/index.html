@@ -318,6 +318,71 @@ G.forBlock['ha_format_date']=function(b){return["formatDate(new Date(), '"+b.get
 
 // Override text_print
 G.forBlock['text_print']=function(b,g){return'log.info('+(g.valueToCode(b,'TEXT',O.NONE)||"''")+');\n'};
+
+// ─── PUSHOVER / TELEGRAM ───
+Blockly.Blocks['ha_pushover']={init:function(){this.appendValueInput('M').appendField('🔔 Pushover');this.appendDummyInput().appendField('title').appendField(new Blockly.FieldTextInput('Alert'),'T');this.appendDummyInput().appendField('priority').appendField(new Blockly.FieldDropdown([['-2 silent','-2'],['-1 low','-1'],['0 normal','0'],['1 high','1'],['2 emergency','2']]),'PR').appendField('sound').appendField(new Blockly.FieldTextInput(''),'SN');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_pushover']=function(b,g){const pr=b.getFieldValue('PR'),sn=b.getFieldValue('SN'),t=b.getFieldValue('T'),msg=g.valueToCode(b,'M',O.ATOMIC)||"''";const d={priority:+pr};if(sn)d.sound=sn;return"sendToMobile('pushover',"+msg+", '"+t+"', {data:"+JSON.stringify(d)+"});\n"};
+
+Blockly.Blocks['ha_telegram']={init:function(){this.appendValueInput('M').appendField('✈️ Telegram notify');this.appendDummyInput().appendField('service').appendField(new Blockly.FieldTextInput('telegram_bot'),'S');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true);this.setTooltip('Uses notify.SERVICE — set service to the name after notify.')}};
+G.forBlock['ha_telegram']=function(b,g){return"sendToMobile('"+b.getFieldValue('S')+"',"+( g.valueToCode(b,'M',O.ATOMIC)||"''")+", '', {});\n"};
+
+Blockly.Blocks['ha_telegram_bot']={init:function(){this.appendValueInput('M').appendField('✈️ Telegram bot');this.appendDummyInput().appendField('chat_id').appendField(new Blockly.FieldTextInput('123456789'),'CHAT');this.setColour('#e8952f');this.setPreviousStatement(true);this.setNextStatement(true);this.setTooltip('Uses telegram_bot.send_message service')}};
+G.forBlock['ha_telegram_bot']=function(b,g){return"callService('telegram_bot','send_message',{message:"+( g.valueToCode(b,'M',O.ATOMIC)||"''")+",target:["+b.getFieldValue('CHAT')+"]},{});\n"};
+
+// ─── MQTT ───
+Blockly.Blocks['ha_mqtt_pub']={init:function(){this.appendDummyInput().appendField('📡 MQTT publish').appendField(new Blockly.FieldTextInput('my/topic'),'T');this.appendValueInput('P').appendField('payload');this.appendDummyInput().appendField('retain').appendField(new Blockly.FieldCheckbox('FALSE'),'R').appendField('qos').appendField(new Blockly.FieldDropdown([['0','0'],['1','1'],['2','2']]),'Q');this.setColour('#5da4e8');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_mqtt_pub']=function(b,g){const t=b.getFieldValue('T'),r=b.getFieldValue('R')==='TRUE'?'true':'false',q=b.getFieldValue('Q'),p=g.valueToCode(b,'P',O.ATOMIC)||"''";return"callService('mqtt','publish',{topic:'"+t+"',payload:String("+p+"),qos:"+q+",retain:"+r+"},{});\n"};
+
+Blockly.Blocks['ha_mqtt_sub']={init:function(){this.appendDummyInput().appendField('📡 MQTT on').appendField(new Blockly.FieldTextInput('my/topic/#'),'T');this.appendStatementInput('DO').appendField('do (payload, topic)');this.setColour('#5da4e8');this.setPreviousStatement(true);this.setNextStatement(true);this.setTooltip('Callback receives payload (string) and topic as variables')}};
+G.forBlock['ha_mqtt_sub']=function(b,g){return"subscribeMqtt('"+b.getFieldValue('T')+"', function(payload, topic) {\n"+g.statementToCode(b,'DO')+"});\n"};
+
+// ─── LIGHT ───
+Blockly.Blocks['ha_light_on']={init:function(){this.appendDummyInput().appendField('💡 light on').appendField(new Blockly.FieldTextInput('light.room'),'E');this.appendDummyInput().appendField('brightness').appendField(new Blockly.FieldNumber(200,1,255),'B').appendField('color temp K').appendField(new Blockly.FieldNumber(3000,1000,6500),'CT');this.setColour('#e8cc5e');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_light_on']=function(b){return"callService('light','turn_on',{brightness:"+b.getFieldValue('B')+",color_temp_kelvin:"+b.getFieldValue('CT')+"},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+Blockly.Blocks['ha_light_rgb']={init:function(){this.appendDummyInput().appendField('💡 light RGB').appendField(new Blockly.FieldTextInput('light.room'),'E');this.appendDummyInput().appendField('R').appendField(new Blockly.FieldNumber(255,0,255),'R').appendField('G').appendField(new Blockly.FieldNumber(128,0,255),'GV').appendField('B').appendField(new Blockly.FieldNumber(0,0,255),'BV');this.setColour('#e8cc5e');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_light_rgb']=function(b){return"callService('light','turn_on',{rgb_color:["+b.getFieldValue('R')+","+b.getFieldValue('GV')+","+b.getFieldValue('BV')+"]}  ,{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+Blockly.Blocks['ha_light_off']={init:function(){this.appendDummyInput().appendField('💡 light off').appendField(new Blockly.FieldTextInput('light.room'),'E');this.setColour('#e8cc5e');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_light_off']=function(b){return"callService('light','turn_off',{},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+// ─── MEDIA PLAYER ───
+Blockly.Blocks['ha_media_cmd']={init:function(){this.appendDummyInput().appendField('🎵').appendField(new Blockly.FieldDropdown([['play ▶','media_play'],['pause ⏸','media_pause'],['stop ⏹','media_stop'],['next ⏭','media_next_track'],['previous ⏮','media_previous_track'],['play/pause ⏯','media_play_pause']]),'CMD').appendField(new Blockly.FieldTextInput('media_player.tv'),'E');this.setColour('#995ba5');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_media_cmd']=function(b){return"callService('media_player','"+b.getFieldValue('CMD')+"',{},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+Blockly.Blocks['ha_media_vol']={init:function(){this.appendDummyInput().appendField('🔊 volume').appendField(new Blockly.FieldTextInput('media_player.tv'),'E').appendField('to').appendField(new Blockly.FieldNumber(0.5,0,1,0.05),'V');this.setColour('#995ba5');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_media_vol']=function(b){return"callService('media_player','volume_set',{volume_level:"+b.getFieldValue('V')+"},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+Blockly.Blocks['ha_media_src']={init:function(){this.appendDummyInput().appendField('🎵 source').appendField(new Blockly.FieldTextInput('media_player.tv'),'E').appendField('→').appendField(new Blockly.FieldTextInput('Netflix'),'S');this.setColour('#995ba5');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_media_src']=function(b){return"callService('media_player','select_source',{source:'"+b.getFieldValue('S')+"'},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+Blockly.Blocks['ha_media_url']={init:function(){this.appendDummyInput().appendField('🎵 play URL').appendField(new Blockly.FieldTextInput('media_player.tv'),'E');this.appendDummyInput().appendField('url').appendField(new Blockly.FieldTextInput('https://example.com/audio.mp3'),'URL').appendField('type').appendField(new Blockly.FieldDropdown([['music','music'],['video','video'],['podcast','podcast'],['tvshow','tvshow']]),'MT');this.setColour('#995ba5');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_media_url']=function(b){return"callService('media_player','play_media',{media_content_id:'"+b.getFieldValue('URL')+"',media_content_type:'"+b.getFieldValue('MT')+"'},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+// ─── CLIMATE ───
+Blockly.Blocks['ha_climate_temp']={init:function(){this.appendDummyInput().appendField('🌡 set temp').appendField(new Blockly.FieldTextInput('climate.living_room'),'E').appendField('to').appendField(new Blockly.FieldNumber(21,5,35,0.5),'T').appendField('°C');this.setColour('#e85d5d');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_climate_temp']=function(b){return"callService('climate','set_temperature',{temperature:"+b.getFieldValue('T')+"},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+Blockly.Blocks['ha_climate_mode']={init:function(){this.appendDummyInput().appendField('🌡 HVAC').appendField(new Blockly.FieldTextInput('climate.living_room'),'E').appendField('→').appendField(new Blockly.FieldDropdown([['off','off'],['heat','heat'],['cool','cool'],['heat_cool','heat_cool'],['auto','auto'],['dry','dry'],['fan_only','fan_only']]),'M');this.setColour('#e85d5d');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_climate_mode']=function(b){return"callService('climate','set_hvac_mode',{hvac_mode:'"+b.getFieldValue('M')+"'},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+// ─── COVER ───
+Blockly.Blocks['ha_cover']={init:function(){this.appendDummyInput().appendField('🪟').appendField(new Blockly.FieldDropdown([['open ↑','open_cover'],['close ↓','close_cover'],['stop ⏹','stop_cover']]),'A').appendField(new Blockly.FieldTextInput('cover.blinds'),'E');this.setColour('#5ec489');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_cover']=function(b){return"callService('cover','"+b.getFieldValue('A')+"',{},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+Blockly.Blocks['ha_cover_pos']={init:function(){this.appendDummyInput().appendField('🪟 position').appendField(new Blockly.FieldTextInput('cover.blinds'),'E').appendField('to').appendField(new Blockly.FieldNumber(50,0,100),'P').appendField('%');this.setColour('#5ec489');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_cover_pos']=function(b){return"callService('cover','set_cover_position',{position:"+b.getFieldValue('P')+"},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+// ─── SCENE / LOCK ───
+Blockly.Blocks['ha_scene']={init:function(){this.appendDummyInput().appendField('🎭 activate scene').appendField(new Blockly.FieldTextInput('scene.evening'),'S');this.setColour('#a07de8');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_scene']=function(b){return"callService('scene','turn_on',{},{entity_id:'"+b.getFieldValue('S')+"'});\n"};
+
+Blockly.Blocks['ha_lock']={init:function(){this.appendDummyInput().appendField('🔒').appendField(new Blockly.FieldDropdown([['lock','lock'],['unlock','unlock']]),'A').appendField(new Blockly.FieldTextInput('lock.front_door'),'E');this.setColour('#5da4e8');this.setPreviousStatement(true);this.setNextStatement(true)}};
+G.forBlock['ha_lock']=function(b){return"callService('lock','"+b.getFieldValue('A')+"',{},{entity_id:'"+b.getFieldValue('E')+"'});\n"};
+
+// ─── HTTP POST ───
+Blockly.Blocks['ha_http_post']={init:function(){this.appendDummyInput().appendField('🌐 HTTP POST').appendField(new Blockly.FieldTextInput('https://api.example.com'),'URL');this.appendValueInput('BODY').appendField('body (obj)');this.setOutput(true);this.setColour('#e85d5d');this.setTooltip('POST JSON body to URL, returns response string')}};
+G.forBlock['ha_http_post']=function(b,g){const body=g.valueToCode(b,'BODY',O.ATOMIC)||'{}';return["(await httpPost('"+b.getFieldValue('URL')+"',"+body+"))",O.AWAIT]};
 }
 
 // ─── TOOLBOX ───
@@ -330,9 +395,35 @@ var toolbox={kind:'categoryToolbox',contents:[
   {kind:'block',type:'ha_getattr',fields:{E:'light.desk',A:'brightness'}},{kind:'block',type:'ha_is',fields:{E:'binary_sensor.door',V:'on'}},{kind:'block',type:'ha_exists',fields:{E:'sensor.temp'}}]},
 {kind:'category',name:'⚡ Actions',colour:'#5ec489',contents:[
   {kind:'block',type:'ha_service',fields:{D:'light',S:'turn_on',E:'light.room',DATA:'{"brightness":200}'}},
-  {kind:'block',type:'ha_http',fields:{URL:'https://api.example.com/data'}}]},
+  {kind:'block',type:'ha_http',fields:{URL:'https://api.example.com/data'}},
+  {kind:'block',type:'ha_http_post',fields:{URL:'https://api.example.com/data'}}]},
 {kind:'category',name:'📨 Send To',colour:'#e8952f',contents:[
-  {kind:'block',type:'ha_notify',fields:{T:'Automation'}},{kind:'block',type:'ha_mobile',fields:{S:'mobile_app_phone',T:'HA Blocks'}}]},
+  {kind:'block',type:'ha_notify',fields:{T:'Automation'}},
+  {kind:'block',type:'ha_mobile',fields:{S:'mobile_app_phone',T:'HA Blocks'}},
+  {kind:'block',type:'ha_pushover',fields:{T:'Alert',PR:'0',SN:''}},
+  {kind:'block',type:'ha_telegram',fields:{S:'telegram_bot'}},
+  {kind:'block',type:'ha_telegram_bot',fields:{CHAT:'123456789'}}]},
+{kind:'category',name:'📡 MQTT',colour:'#5da4e8',contents:[
+  {kind:'block',type:'ha_mqtt_pub',fields:{T:'my/topic',Q:'0',R:'FALSE'}},
+  {kind:'block',type:'ha_mqtt_sub',fields:{T:'my/topic/#'}}]},
+{kind:'category',name:'💡 Light',colour:'#e8cc5e',contents:[
+  {kind:'block',type:'ha_light_on',fields:{E:'light.room',B:200,CT:3000}},
+  {kind:'block',type:'ha_light_rgb',fields:{E:'light.room',R:255,GV:128,BV:0}},
+  {kind:'block',type:'ha_light_off',fields:{E:'light.room'}}]},
+{kind:'category',name:'🎵 Media',colour:'#995ba5',contents:[
+  {kind:'block',type:'ha_media_cmd',fields:{E:'media_player.tv',CMD:'media_play_pause'}},
+  {kind:'block',type:'ha_media_vol',fields:{E:'media_player.tv',V:0.5}},
+  {kind:'block',type:'ha_media_src',fields:{E:'media_player.tv',S:'Netflix'}},
+  {kind:'block',type:'ha_media_url',fields:{E:'media_player.tv',URL:'https://example.com/audio.mp3',MT:'music'}}]},
+{kind:'category',name:'🌡 Climate',colour:'#e85d5d',contents:[
+  {kind:'block',type:'ha_climate_temp',fields:{E:'climate.living_room',T:21}},
+  {kind:'block',type:'ha_climate_mode',fields:{E:'climate.living_room',M:'heat'}}]},
+{kind:'category',name:'🪟 Cover',colour:'#5ec489',contents:[
+  {kind:'block',type:'ha_cover',fields:{E:'cover.blinds',A:'open_cover'}},
+  {kind:'block',type:'ha_cover_pos',fields:{E:'cover.blinds',P:50}}]},
+{kind:'category',name:'🎭 Scene',colour:'#a07de8',contents:[
+  {kind:'block',type:'ha_scene',fields:{S:'scene.evening'}},
+  {kind:'block',type:'ha_lock',fields:{E:'lock.front_door',A:'lock'}}]},
 {kind:'category',name:'🔔 Trigger',colour:'#e8952f',contents:[
   {kind:'block',type:'ha_on_change',fields:{E:'binary_sensor.door'}},{kind:'block',type:'ha_on_value',fields:{E:'binary_sensor.motion',V:'on'}},
   {kind:'block',type:'ha_on_multi',fields:{E:'sensor.temp, sensor.humidity'}},{kind:'block',type:'ha_event'},

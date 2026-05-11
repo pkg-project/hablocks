@@ -188,7 +188,7 @@ function mapSet(eid, val) {
 // ── Script runtime (mirrors createRT in the browser) ──────────
 function createRT(sid, sname, opts) {
   const lat = opts?.lat ?? 51.97, lng = opts?.lng ?? 5.67;
-  const subs = [], tms = new Set(), ivs = new Set(), crons = [], stops = [], vStates = new Map(), namedIv = new Map();
+  const subs = [], tms = new Set(), ivs = new Set(), crons = [], stops = [], vStates = new Map(), namedIv = new Map(), mqttSubs = [];
   let dead = false, nid = 1;
 
   function scriptLog(level, msg) {
@@ -257,6 +257,35 @@ function createRT(sid, sname, opts) {
     },
     sendNotification(msg, title) { return api.callService('persistent_notification', 'create', { message: msg, title: title || 'Automation' }); },
     sendToMobile(svc, msg, title, data) { return api.callService('notify', svc || 'notify', { message: msg, title: title || 'HA Blocks', ...(data || {}) }); },
+    subscribeMqtt(topic, cb) {
+      if (!haConnected || !haWs) throw new Error('Not connected to HA');
+      const id = haMsgId++;
+      haWs.send(JSON.stringify({ id, type: 'subscribe_trigger', trigger: { platform: 'mqtt', topic } }));
+      haEventSubs.set(id, ev => {
+        if (dead) return;
+        const tr = ev.variables?.trigger || {};
+        safe(cb, tr.payload, tr.topic || topic);
+      });
+      mqttSubs.push(id);
+      return id;
+    },
+    httpPost(url, body, headers) {
+      return new Promise(resolve => {
+        const data = typeof body === 'string' ? body : JSON.stringify(body);
+        const mod = url.startsWith('https') ? https : http;
+        try {
+          const urlObj = new URL(url);
+          const opts = {
+            hostname: urlObj.hostname, port: urlObj.port || (url.startsWith('https') ? 443 : 80),
+            path: urlObj.pathname + urlObj.search, method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data), ...(headers || {}) }
+          };
+          const req = mod.request(opts, res => { let d = ''; res.on('data', c => d += c); res.on('end', () => resolve(d)); });
+          req.on('error', e => { scriptLog('error', 'httpPost: ' + e.message); resolve(null); });
+          req.write(data); req.end();
+        } catch (e) { scriptLog('error', 'httpPost: ' + e.message); resolve(null); }
+      });
+    },
   };
 
   return {
@@ -275,7 +304,11 @@ function createRT(sid, sname, opts) {
       dead = true;
       stops.forEach(cb => { try { cb(); } catch {} });
       tms.forEach(t => clearTimeout(t)); ivs.forEach(t => clearInterval(t));
-      tms.clear(); ivs.clear(); subs.length = 0; crons.length = 0; stops.length = 0;
+      mqttSubs.forEach(id => {
+        haEventSubs.delete(id);
+        if (haConnected && haWs) try { haWs.send(JSON.stringify({ id: haMsgId++, type: 'unsubscribe_events', subscription: id })); } catch {}
+      });
+      tms.clear(); ivs.clear(); subs.length = 0; crons.length = 0; stops.length = 0; mqttSubs.length = 0;
     },
     get subCnt() { return subs.length; },
     get schCnt() { return crons.length; },
@@ -296,7 +329,7 @@ function runScript(id, name, code, opts) {
       'on','subscribe','unsubscribe','getState','setState','existsState','getAttr','setStateDelayed','clearStateDelayed',
       'createState','deleteState','callService','schedule','clearSchedule','setTimeout','setInterval','clearTimeout',
       'clearInterval','log','console','onStop','wait','sleep','formatDate','getAstroDate','isAstroDay',
-      'toNumber','toBoolean','typeOf','parseJSON','toJSON','httpGet','sendNotification','sendToMobile',
+      'toNumber','toBoolean','typeOf','parseJSON','toJSON','httpGet','httpPost','sendNotification','sendToMobile','subscribeMqtt',
       code
     );
     fn(
@@ -305,8 +338,8 @@ function runScript(id, name, code, opts) {
       rt.api.callService, rt.api.schedule, rt.api.clearSchedule, rt.api.setTimeout, rt.api.setInterval,
       rt.api.clearTimeout, rt.api.clearInterval, rt.api.log, rt.api.console, rt.api.onStop, rt.api.wait,
       rt.api.sleep, rt.api.formatDate, rt.api.getAstroDate, rt.api.isAstroDay, rt.api.toNumber,
-      rt.api.toBoolean, rt.api.typeOf, rt.api.parseJSON, rt.api.toJSON, rt.api.httpGet,
-      rt.api.sendNotification, rt.api.sendToMobile
+      rt.api.toBoolean, rt.api.typeOf, rt.api.parseJSON, rt.api.toJSON, rt.api.httpGet, rt.api.httpPost,
+      rt.api.sendNotification, rt.api.sendToMobile, rt.api.subscribeMqtt
     );
     runningScripts.set(id, rt);
     broadcast({ type: 'log', script: id, level: 'info', msg: `Script "${name}" started`, t: Date.now() });
